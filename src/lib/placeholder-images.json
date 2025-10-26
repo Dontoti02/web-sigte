@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "workshop-art",
+      "description": "Taller de arte para niños",
+      "imageUrl": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhcnQlMjBzdXBwbGllc3xlbnwwfHx8fDE3NjEwMDYyODV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "art supplies"
+    },
+    {
+      "id": "workshop-music",
+      "description": "Taller de música para niños",
+      "imageUrl": "https://images.unsplash.com/photo-1623771859039-e435068f39d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxtdXNpY2FsJTIwaW5zdHJ1bWVudHN8ZW58MHx8fHwxNzYxMDY2MzE2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "musical instruments"
+    },
+    {
+      "id": "workshop-coding",
+      "description": "Taller de programación para niños",
+      "imageUrl": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxsYXB0b3AlMjBjb2RlfGVufDB8fHx8MTc2MTA2NjMxNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "laptop code"
+    },
+    {
+      "id": "workshop-robotics",
+      "description": "Taller de robótica",
+      "imageUrl": "https://images.unsplash.com/photo-1743495851178-56ace672e545?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cm9ib3QlMjBraXR8ZW58MHx8fHwxNzYxMDY2MzE2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "robot kit"
+    },
+    {
+      "id": "workshop-science",
+      "description": "Taller de ciencias divertidas",
+      "imageUrl": "https://images.unsplash.com/photo-1614935151651-0bea6508db6b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxzY2llbmNlJTIwZXhwZXJpbWVudHxlbnwwfHx8fDE3NjEwMDk1NTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "science experiment"
+    },
+    {
+      "id": "workshop-writing",
+      "description": "Taller de escritura creativa",
+      "imageUrl": "https://images.unsplash.com/photo-1587135991058-8816b028691f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxub3RlYm9vayUyMHBlbnxlbnwwfHx8fDE3NjA5OTk4MzV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "notebook pen"
+    }
+  ]
+}

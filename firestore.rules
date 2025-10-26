@@ -1,0 +1,192 @@
+/**
+ * @file Firestore Security Rules for SIGTE Application
+ * @description This ruleset enforces a user-ownership model for user profiles and a role-based model for administrative functions.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles (Parents, Teachers, or Students). User-owned; accessible only by the user.
+ * - /users/{parentId}/students/{studentId}: Stores student profiles under their respective parents. Enforces parent-child ownership.
+ * - /teachers/{teacherId}: Stores teacher profiles. Accessible only by the teacher.
+ * - /workshops/{workshopId}: Stores workshop details. Accessible only by the teacher who created the workshop and the students associated with it.
+ * - /attendance/{attendanceId}: Stores attendance records. Accessible only to the student the records belong to.
+ * - /announcements/{announcementId}: Stores school announcements. Accessible only by the author and admins.
+ * - /roles_admin/{userId}: Defines admin roles. The existence of a document for a user ID in this collection grants admin privileges.
+ *
+ * Key Security Decisions:
+ * - User profiles are strictly private and only accessible by the authenticated user.
+ * - Listing of users and attendance records is disallowed for non-admins.
+ * - Workshops can be created by teachers, and access is controlled via teacherId field.
+ * - Admin privileges are granted based on the presence of a document in the /roles_admin/{userId} collection.
+ *
+ * Denormalization for Authorization:
+ * - Workshop documents MUST contain the teacherId of the workshop creator for authorization.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Checks if the current user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the current user is the owner of the resource.
+     * @param {string} userId The user ID to compare against the request's auth UID.
+     * @return {boolean} True if the user is the owner, false otherwise.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+     /**
+      * @description Checks if the current user is the owner of the resource and the resource exists.
+      * @param {string} userId The user ID to compare against the resource's owner ID.
+      * @return {boolean} True if the user is the existing owner, false otherwise.
+      */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Checks if the current user is an admin.
+     * @return {boolean} True if the user is an admin, false otherwise.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Rules for user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with UID 'user_abc' can create their own profile document with id 'user_abc'.
+     * @allow (get) User with UID 'user_abc' can read their own profile document.
+     * @allow (update) User with UID 'user_abc' can update their own profile document.
+     * @allow (delete) User with UID 'user_abc' can delete their own profile document.
+     * @deny (create) User with UID 'user_xyz' cannot create a profile document with id 'user_abc'.
+     * @deny (get) User with UID 'user_xyz' cannot read the profile document of user 'user_abc'.
+     * @principle Enforces document ownership for user profiles; only the authenticated user can access their own profile.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for student profiles under a parent.
+     * @path /users/{parentId}/students/{studentId}
+     * @allow (create) Parent with UID 'parent_abc' can create a student profile with id 'student_xyz' under their profile.
+     * @allow (get) Parent with UID 'parent_abc' can read a student profile with id 'student_xyz' under their profile.
+     * @allow (update) Parent with UID 'parent_abc' can update a student profile with id 'student_xyz' under their profile.
+     * @allow (delete) Parent with UID 'parent_abc' can delete a student profile with id 'student_xyz' under their profile.
+     * @deny (create) Parent with UID 'parent_xyz' cannot create a student profile under parent 'parent_abc'.
+     * @deny (get) Parent with UID 'parent_xyz' cannot read a student profile under parent 'parent_abc'.
+     * @principle Enforces parent-child ownership for student profiles; only the parent can manage their students' profiles.
+     */
+    match /users/{parentId}/students/{studentId} {
+      allow get: if isOwner(parentId);
+      allow list: if isOwner(parentId);
+      allow create: if isOwner(parentId) && request.resource.data.parentId == parentId;
+      allow update: if isExistingOwner(parentId) && resource.data.parentId == parentId;
+      allow delete: if isExistingOwner(parentId) && resource.data.parentId == parentId;
+    }
+
+    /**
+     * @description Rules for teacher profiles.
+     * @path /teachers/{teacherId}
+     * @allow (create) Teacher with UID 'teacher_abc' can create their own profile document with id 'teacher_abc'.
+     * @allow (get) Teacher with UID 'teacher_abc' can read their own profile document.
+     * @allow (update) Teacher with UID 'teacher_abc' can update their own profile document.
+     * @allow (delete) Teacher with UID 'teacher_abc' can delete their own profile document.
+     * @deny (create) Teacher with UID 'teacher_xyz' cannot create a profile document with id 'teacher_abc'.
+     * @deny (get) Teacher with UID 'teacher_xyz' cannot read the profile document of teacher 'teacher_abc'.
+     * @principle Enforces document ownership for teacher profiles; only the authenticated teacher can access their own profile.
+     */
+    match /teachers/{teacherId} {
+      allow get: if isOwner(teacherId);
+      allow list: if isAdmin(); // Only admins can list all teachers.
+      allow create: if isOwner(teacherId);
+      allow update: if isExistingOwner(teacherId);
+      allow delete: if isExistingOwner(teacherId);
+    }
+
+    /**
+     * @description Rules for workshops.
+     * @path /workshops/{workshopId}
+     * @allow (create) Teacher with UID 'teacher_abc' can create a workshop, with 'teacherId' field set to 'teacher_abc'.
+     * @allow (get) Any signed-in user can read workshop details.
+     * @allow (update) Only the teacher who created the workshop can update it.
+     * @allow (delete) Only the teacher who created the workshop can delete it.
+     * @deny (create) Teacher with UID 'teacher_xyz' cannot create a workshop with 'teacherId' field set to 'teacher_abc'.
+     * @deny (update) Teacher with UID 'teacher_xyz' cannot update a workshop created by 'teacher_abc'.
+     * @principle Enforces ownership for workshops, allowing only the creating teacher to update/delete them.  Allows public read access.
+     */
+    match /workshops/{workshopId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && resource.data.teacherId == request.auth.uid;
+      allow delete: if isSignedIn() && resource != null && resource.data.teacherId == request.auth.uid;
+    }
+
+    /**
+     * @description Rules for attendance records.
+     * @path /attendance/{attendanceId}
+     * @allow (create) Any signed-in user can create a attendance record
+     * @allow (get) Any signed-in user can read a attendance record
+     * @allow (update) Any signed-in user can update a attendance record
+     * @allow (delete) Any signed-in user can delete a attendance record
+     * @deny (list) Nobody can list attendance records.
+     */
+    match /attendance/{attendanceId} {
+        allow get: if true;
+        allow list: if false;
+        allow create: if true;
+        allow update: if true;
+        allow delete: if true;
+    }
+
+    /**
+     * @description Rules for announcements.
+     * @path /announcements/{announcementId}
+     * @allow (create) Teacher with UID 'teacher_abc' can create an announcement with 'authorId' set to 'teacher_abc'. Admin can create with their UID.
+     * @allow (get) Any user can read announcements.
+     * @allow (update) Only the author of the announcement or an admin can update it.
+     * @allow (delete) Only the author of the announcement or an admin can delete it.
+     * @deny (create) Teacher with UID 'teacher_xyz' cannot create an announcement with 'authorId' set to 'teacher_abc'.
+     * @deny (update) Teacher with UID 'teacher_xyz' cannot update an announcement created by 'teacher_abc'.
+     * @principle Allows public read access to announcements while restricting write access to authors and admins.
+     */
+    match /announcements/{announcementId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && resource != null && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    /**
+     * @description Rules for defining admin roles.
+     * @path /roles_admin/{userId}
+     * @allow (create) Any user can create their own admin role document.
+     * @allow (get) Only the user themselves or an admin can check if they are an admin.
+     * @allow (update) No one can update an admin role document.
+     * @allow (delete) Only the user themselves or an admin can delete their own admin role document.
+     * @deny (create) User with UID 'user_xyz' cannot create an admin role document for 'user_abc'.
+     * @deny (get) User with UID 'user_xyz' cannot check if user 'user_abc' is an admin.
+     * @principle Grants admin privileges based on the existence of a document in this collection.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if false;
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+  }
+}

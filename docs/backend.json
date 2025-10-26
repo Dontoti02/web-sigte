@@ -1,0 +1,355 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user in the system, can be an admin, teacher, student, or parent.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user.",
+          "enum": ["admin", "teacher", "student", "parent"]
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
+        },
+        "grade": {
+            "type": "string",
+            "description": "The grade of the student."
+        },
+        "section": {
+            "type": "string",
+            "description": "The section of the student."
+        }
+      },
+      "required": ["id", "firstName", "lastName", "email", "role"]
+    },
+    "Student": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Student",
+      "type": "object",
+      "description": "Represents a student in the school system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Student entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the student."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the student."
+        },
+        "dateOfBirth": {
+          "type": "string",
+          "description": "The date of birth of the student.",
+          "format": "date"
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the student.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the student."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the student."
+        },
+        "parentId": {
+          "type": "string",
+          "description": "Reference to Parent. (Relationship: Parent 1:N Student)"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "dateOfBirth",
+        "email",
+        "parentId"
+      ]
+    },
+    "Teacher": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Teacher",
+      "type": "object",
+      "description": "Represents a teacher in the school system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Teacher entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the teacher."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the teacher."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the teacher.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the teacher."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the teacher."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email"
+      ]
+    },
+    "Parent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Parent",
+      "type": "object",
+      "description": "Represents a parent of a student in the school system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Parent entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the parent."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the parent."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the parent.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the parent."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the parent."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email"
+      ]
+    },
+    "Workshop": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Workshop",
+      "type": "object",
+      "description": "Represents a workshop offered in the school system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Workshop entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The name of the workshop."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the workshop."
+        },
+        "teacherId": {
+          "type": "string",
+          "description": "Reference to Teacher. (Relationship: Teacher 1:N Workshop)"
+        },
+        "teacherName": {
+            "type": "string",
+            "description": "The name of the teacher."
+        },
+        "schedule": {
+          "type": "string",
+          "description": "The schedule of the workshop."
+        },
+        "participants": {
+          "type": "array",
+          "description": "References to Students. (Relationship: Workshop N:N Student)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "imageUrl": {
+            "type": "string",
+            "description": "URL of the workshop's image."
+        },
+        "status": {
+            "type": "string",
+            "description": "The status of the workshop.",
+            "enum": ["active", "inactive"]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "teacherId",
+        "teacherName",
+        "schedule",
+        "status"
+      ]
+    },
+    "Attendance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Attendance",
+      "type": "object",
+      "description": "Represents the attendance record of a student for a specific date.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Attendance entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N Attendance)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the attendance record.",
+          "format": "date"
+        },
+        "isPresent": {
+          "type": "boolean",
+          "description": "Indicates whether the student was present or not."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any notes regarding the attendance record."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "date",
+        "isPresent"
+      ]
+    },
+    "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents an announcement made by the school.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Announcement entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the announcement."
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the announcement."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date the announcement was made.",
+          "format": "date-time"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Reference to the Author (likely an Admin or Teacher). (Relationship: Author 1:N Announcement)"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "content",
+        "date",
+        "authorId"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Stores user profiles including role for authorization."
+    },
+    "/students/{studentId}": {
+      "schema": {
+        "$ref": "#/entities/Student"
+      },
+      "description": "Stores student profiles."
+    },
+    "/teachers/{teacherId}": {
+      "schema": {
+        "$ref": "#/entities/Teacher"
+      },
+      "description": "Stores teacher profiles."
+    },
+    "/parents/{parentId}": {
+      "schema": {
+        "$ref": "#/entities/Parent"
+      },
+      "description": "Stores parent profiles."
+    },
+    "/workshops/{workshopId}": {
+      "schema": {
+        "$ref": "#/entities/Workshop"
+      },
+      "description": "Stores workshop details."
+    },
+    "/attendance/{attendanceId}": {
+      "schema": {
+        "$ref": "#/entities/Attendance"
+      },
+      "description": "Stores attendance records."
+    },
+    "/announcements/{announcementId}": {
+      "schema": {
+        "$ref": "#/entities/Announcement"
+      },
+      "description": "Stores school announcements."
+    }
+  }
+}
+
+    
+    
