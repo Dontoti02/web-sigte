@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, Loader2, Search, Calendar, Clock, Filter as FilterIcon, Trash2, AlertCircle, CheckCheck, BookMarked, Users } from 'lucide-react';
+import { Upload, FileSpreadsheet, Loader2, Search, Calendar, Clock, Filter as FilterIcon, Trash2, AlertCircle, CheckCheck, BookMarked, Users, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -44,11 +44,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface BulkAttendanceUploadProps {
   onUploadComplete: () => void;
-  selectedGrade: string;
   selectedSection: string;
 }
 
-function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection }: BulkAttendanceUploadProps) {
+function BulkAttendanceUpload({ onUploadComplete, selectedSection }: BulkAttendanceUploadProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +64,7 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!selectedGrade || !selectedSection) {
+    if (!selectedSection) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -83,7 +82,7 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const allStudents = users?.filter((user) => user.role === 'student' && user.grade === selectedGrade && user.section === selectedSection);
+      const allStudents = users?.filter((user) => user.role === 'student' && user.section === selectedSection);
 
       if (!allStudents || allStudents.length === 0) {
         toast({
@@ -139,7 +138,7 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
         toast({
           variant: 'destructive',
           title: 'No se encontraron estudiantes',
-          description: `No se encontró ningún estudiante del Excel en ${selectedGrade} - ${selectedSection}. Verifica que el archivo corresponda al grado y sección correctos.`,
+          description: `No se encontró ningún estudiante del Excel en Sección ${selectedSection}. Verifica que el archivo corresponda a la sección correcta.`,
         });
         setIsProcessing(false);
         if (fileInputRef.current) {
@@ -236,12 +235,11 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
     if (!pendingAttendanceData) return;
 
     try {
-      const attendanceDocId = `${selectedGrade}_${selectedSection}_${pendingAttendanceData.attendanceDate}`;
+      const attendanceDocId = `${selectedSection}_${pendingAttendanceData.attendanceDate}`;
       const attendanceRef = doc(firestore, 'attendance', attendanceDocId);
       
       await setDoc(attendanceRef, {
         date: pendingAttendanceData.attendanceDate,
-        grade: selectedGrade,
         section: selectedSection,
         records: pendingAttendanceData.attendanceRecords,
       });
@@ -280,7 +278,7 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
     <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" disabled={!selectedGrade || !selectedSection}>
+        <Button variant="outline" disabled={!selectedSection}>
           <Upload className="mr-2 h-4 w-4" />
           Importar Asistencia desde Excel
         </Button>
@@ -289,15 +287,15 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
         <DialogHeader>
           <DialogTitle>Importar Asistencia Masiva</DialogTitle>
           <DialogDescription>
-            Importando para: <strong>{selectedGrade} - Sección {selectedSection}</strong>
+            Importando para: <strong>Sección {selectedSection}</strong>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>¡Importante!</strong> Los estudiantes se importarán para <strong>{selectedGrade} - Sección {selectedSection}</strong>. 
-              Verifica que sea el grado y sección correctos antes de continuar.
+              <strong>¡Importante!</strong> Los estudiantes se importarán para <strong>Sección {selectedSection}</strong>. 
+              Verifica que sea la sección correcta antes de continuar.
             </AlertDescription>
           </Alert>
           
@@ -378,8 +376,8 @@ function BulkAttendanceUpload({ onUploadComplete, selectedGrade, selectedSection
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium">Grado y Sección</p>
-                <p className="text-2xl font-bold">{selectedGrade} - {selectedSection}</p>
+                <p className="text-sm font-medium">Sección</p>
+                <p className="text-2xl font-bold">{selectedSection}</p>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium">Fecha</p>
@@ -430,7 +428,6 @@ function AdminTeacherAttendance() {
   const { user, role } = useRole();
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -440,10 +437,6 @@ function AdminTeacherAttendance() {
   const [filterTimeFrom, setFilterTimeFrom] = useState<string>('');
   const [filterTimeTo, setFilterTimeTo] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [dateToDelete, setDateToDelete] = useState<string>('');
-  const [gradeToDelete, setGradeToDelete] = useState<string>('');
-  const [sectionToDelete, setSectionToDelete] = useState<string>('');
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users } = useCollection<User>(usersQuery);
@@ -467,21 +460,16 @@ function AdminTeacherAttendance() {
 
   const uniqueSections = Array.from(new Set(allStudents?.map(s => s.section).filter(Boolean))) as string[];
 
-  const handleGradeChange = (grade: string) => {
-    setSelectedGrade(grade);
-    setSelectedSection('');
-    setAttendanceRecords([]);
-  };
 
-  const loadAttendanceRecords = async (grade: string, section: string, date?: string) => {
-    // Filter students by grade and section
+  const loadAttendanceRecords = async (section: string, date?: string) => {
+    // Filter students by section only
     const filteredStudents = allStudents?.filter(
-      s => s.grade === grade && s.section === section
+      s => s.section === section
     );
 
     // Use selected date or today
     const targetDate = date || selectedDate;
-    const attendanceDocId = `${grade}_${section}_${targetDate}`;
+    const attendanceDocId = `${section}_${targetDate}`;
     
     try {
       const attendanceRef = doc(firestore, 'attendance', attendanceDocId);
@@ -521,31 +509,19 @@ function AdminTeacherAttendance() {
 
   const handleSectionChange = (section: string) => {
     setSelectedSection(section);
-    loadAttendanceRecords(selectedGrade, section, selectedDate);
-    loadAvailableDates(selectedGrade, section);
-  };
-
-  const loadAvailableDates = (grade: string, section: string) => {
-    if (!allAttendanceData) return;
-    
-    const dates = allAttendanceData
-      .filter(a => a.grade === grade && a.section === section)
-      .map(a => a.date)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    
-    setAvailableDates(dates);
+    loadAttendanceRecords(section, selectedDate);
   };
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
-    if (selectedGrade && selectedSection) {
-      loadAttendanceRecords(selectedGrade, selectedSection, date);
+    if (selectedSection) {
+      loadAttendanceRecords(selectedSection, date);
     }
   };
 
   const handleUploadComplete = () => {
     setRefreshKey(prev => prev + 1);
-    loadAttendanceRecords(selectedGrade, selectedSection, selectedDate);
+    loadAttendanceRecords(selectedSection, selectedDate);
   };
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
@@ -592,7 +568,7 @@ function AdminTeacherAttendance() {
   };
 
   const saveAttendance = async () => {
-    if (!selectedGrade || !selectedSection) return;
+    if (!selectedSection) return;
 
     // Validar antes de guardar
     const validation = validateAttendance();
@@ -605,20 +581,19 @@ function AdminTeacherAttendance() {
       return;
     }
 
-    const attendanceDocId = `${selectedGrade}_${selectedSection}_${selectedDate}`;
+    const attendanceDocId = `${selectedSection}_${selectedDate}`;
     
     try {
         const attendanceRef = doc(firestore, 'attendance', attendanceDocId);
         await setDoc(attendanceRef, {
             date: selectedDate,
-            grade: selectedGrade,
             section: selectedSection,
             records: attendanceRecords
         });
 
         toast({
             title: 'Asistencia Guardada',
-            description: `Se ha guardado la asistencia de ${selectedGrade} - ${selectedSection} para ${format(new Date(selectedDate), 'PPP', { locale: es })}.`,
+            description: `Se ha guardado la asistencia de Sección ${selectedSection} para ${format(new Date(selectedDate + 'T00:00:00'), 'PPP', { locale: es })}.`,
         });
     } catch (error) {
         toast({
@@ -629,44 +604,8 @@ function AdminTeacherAttendance() {
     }
   };
 
-  const handleDeleteClick = () => {
-    setGradeToDelete('');
-    setSectionToDelete('');
-    setDateToDelete('');
-    setAvailableDates([]);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteGradeChange = (grade: string) => {
-    setGradeToDelete(grade);
-    setSectionToDelete('');
-    setDateToDelete('');
-    setAvailableDates([]);
-  };
-
-  const handleDeleteSectionChange = (section: string) => {
-    setSectionToDelete(section);
-    setDateToDelete('');
-    if (gradeToDelete && section) {
-      loadAvailableDatesForDelete(gradeToDelete, section);
-    }
-  };
-
-  const loadAvailableDatesForDelete = (grade: string, section: string) => {
-    if (!allAttendanceData) return;
-    
-    const dates = allAttendanceData
-      .filter(a => a.grade === grade && a.section === section)
-      .map(a => a.date)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    
-    setAvailableDates(dates);
-  };
-
-  const deleteAttendance = async () => {
-    if (!gradeToDelete || !sectionToDelete || !dateToDelete) return;
-
-    const attendanceDocId = `${gradeToDelete}_${sectionToDelete}_${dateToDelete}`;
+  const deleteAttendance = async (section: string, date: string) => {
+    const attendanceDocId = `${section}_${date}`;
     
     try {
         const attendanceRef = doc(firestore, 'attendance', attendanceDocId);
@@ -674,17 +613,12 @@ function AdminTeacherAttendance() {
 
         toast({
             title: 'Asistencia Eliminada',
-            description: `Se ha eliminado la asistencia de ${gradeToDelete} - ${sectionToDelete} para ${format(new Date(dateToDelete), 'PPP', { locale: es })}.`,
+            description: `Se ha eliminado la asistencia de Sección ${section} para ${format(new Date(date + 'T00:00:00'), 'PPP', { locale: es })}.`,
         });
-
-        setDeleteDialogOpen(false);
-        setGradeToDelete('');
-        setSectionToDelete('');
-        setDateToDelete('');
         
-        // Recargar registros si es el mismo grado, sección y fecha actual
-        if (gradeToDelete === selectedGrade && sectionToDelete === selectedSection && dateToDelete === selectedDate) {
-          loadAttendanceRecords(selectedGrade, selectedSection, selectedDate);
+        // Recargar registros si es la misma sección y fecha actual
+        if (section === selectedSection && date === selectedDate) {
+          loadAttendanceRecords(selectedSection, selectedDate);
         }
     } catch (error) {
         toast({
@@ -730,36 +664,36 @@ function AdminTeacherAttendance() {
     });
   };
 
+  const unmarkAll = () => {
+    setAttendanceRecords(prev =>
+      prev.map(rec => ({
+        ...rec,
+        status: 'none' as AttendanceStatus,
+        registeredDate: '',
+        registeredTime: '',
+      }))
+    );
+
+    toast({
+      title: 'Todos desmarcados',
+      description: `Se desmarcaron ${attendanceRecords.length} estudiantes.`,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Control de Asistencia</CardTitle>
-        <CardDescription>Selecciona el grado y sección para registrar la asistencia de los estudiantes.</CardDescription>
+        <CardDescription>Selecciona la sección para registrar la asistencia de los estudiantes.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Filtros principales */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <Label>Grado</Label>
-            <Select value={selectedGrade} onValueChange={handleGradeChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un grado" />
-              </SelectTrigger>
-              <SelectContent>
-                {sortedGrades.map(grade => (
-                  <SelectItem key={grade} value={grade}>
-                    {grade}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label>Sección</Label>
             <Select 
               value={selectedSection} 
               onValueChange={handleSectionChange}
-              disabled={!selectedGrade}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona una sección" />
@@ -788,7 +722,7 @@ function AdminTeacherAttendance() {
         </div>
 
         {/* Filtros adicionales */}
-        {selectedGrade && selectedSection && attendanceRecords.length > 0 && (
+        {selectedSection && attendanceRecords.length > 0 && (
           <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
             <div className="flex items-center gap-2 text-sm font-medium">
               <FilterIcon className="h-4 w-4" />
@@ -866,11 +800,11 @@ function AdminTeacherAttendance() {
           </div>
         )}
 
-        {selectedGrade && selectedSection && attendanceRecords.length > 0 && (
+        {selectedSection && attendanceRecords.length > 0 && (
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <h3 className="text-lg font-semibold">
-                {selectedGrade} - Sección {selectedSection} | Fecha: {format(new Date(), "PPP", { locale: es })}
+                Sección {selectedSection} | Fecha: {format(new Date(), "PPP", { locale: es })}
               </h3>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -882,18 +816,26 @@ function AdminTeacherAttendance() {
                   <CheckCheck className="mr-2 h-4 w-4" />
                   Marcar Todos Presentes
                 </Button>
+                <Button 
+                  variant="outline" 
+                  size="default"
+                  onClick={unmarkAll}
+                  disabled={!canEditDate()}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Desmarcar Todos
+                </Button>
                 <BulkAttendanceUpload 
                   onUploadComplete={handleUploadComplete}
-                  selectedGrade={selectedGrade}
                   selectedSection={selectedSection}
                 />
                 <Button 
                   variant="destructive" 
                   size="default"
-                  onClick={handleDeleteClick}
+                  onClick={() => setDeleteDialogOpen(true)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar Asistencia
+                  Gestionar Asistencias
                 </Button>
               </div>
             </div>
@@ -1031,118 +973,74 @@ function AdminTeacherAttendance() {
           </div>
         )}
 
-        {selectedGrade && selectedSection && attendanceRecords.length === 0 && (
+        {selectedSection && attendanceRecords.length === 0 && (
           <div className="text-center py-10 text-muted-foreground">
-            <p>No hay estudiantes registrados en {selectedGrade} - Sección {selectedSection}.</p>
+            <p>No hay estudiantes registrados en Sección {selectedSection}.</p>
           </div>
         )}
       </CardContent>
 
       {/* Diálogo de Eliminar Asistencia */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Eliminar Asistencia</DialogTitle>
+            <DialogTitle>Gestionar Asistencias Guardadas</DialogTitle>
             <DialogDescription>
-              Selecciona el grado, sección y fecha de la asistencia que deseas eliminar
+              Lista de todas las asistencias registradas. Haz clic en eliminar para borrar una asistencia.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Grado</Label>
-              <Select value={gradeToDelete} onValueChange={handleDeleteGradeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un grado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedGrades.map(grade => (
-                    <SelectItem key={grade} value={grade}>
-                      {grade}
-                    </SelectItem>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            {allAttendanceData && allAttendanceData.length > 0 ? (
+              <div className="space-y-2">
+                {allAttendanceData
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((attendance) => (
+                    <div 
+                      key={`${attendance.section}_${attendance.date}`}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="font-semibold">
+                            Sección {attendance.section}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(attendance.date + 'T00:00:00'), 'PPP', { locale: es })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {attendance.records.length} estudiantes registrados
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm(`¿Estás seguro de eliminar la asistencia de Sección ${attendance.section} del ${format(new Date((attendance.date || '') + 'T00:00:00'), 'PPP', { locale: es })}?`)) {
+                            deleteAttendance(attendance.section, attendance.date);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Eliminar
+                      </Button>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Sección</Label>
-              <Select 
-                value={sectionToDelete} 
-                onValueChange={handleDeleteSectionChange}
-                disabled={!gradeToDelete}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una sección" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueSections.sort().map(section => (
-                    <SelectItem key={section} value={section}>
-                      {section}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Fecha de Asistencia</Label>
-              {availableDates && availableDates.length > 0 ? (
-                <Select 
-                  value={dateToDelete} 
-                  onValueChange={setDateToDelete}
-                  disabled={!sectionToDelete}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una fecha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableDates.map(date => (
-                      <SelectItem key={date} value={date}>
-                        {format(new Date(date), 'PPP', { locale: es })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : sectionToDelete ? (
-                <p className="text-sm text-muted-foreground">
-                  No hay asistencias registradas para {gradeToDelete} - {sectionToDelete}.
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Selecciona un grado y sección primero.
-                </p>
-              )}
-            </div>
-
-            {gradeToDelete && sectionToDelete && dateToDelete && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Esta acción eliminará permanentemente la asistencia de <strong>{gradeToDelete} - {sectionToDelete}</strong> del día <strong>{format(new Date(dateToDelete), 'PPP', { locale: es })}</strong>. 
-                  Esta acción no se puede deshacer.
-                </AlertDescription>
-              </Alert>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-semibold">No hay asistencias registradas</p>
+                <p className="text-sm mt-2">Aún no se han guardado asistencias en el sistema.</p>
+              </div>
             )}
           </div>
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setGradeToDelete('');
-                setSectionToDelete('');
-                setDateToDelete('');
-              }}
+              onClick={() => setDeleteDialogOpen(false)}
             >
-              Cancelar
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={deleteAttendance}
-              disabled={!gradeToDelete || !sectionToDelete || !dateToDelete}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar Asistencia
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1182,7 +1080,7 @@ function StudentParentAttendance() {
                 grade: a.grade, 
                 section: a.section
             }))
-        ).filter(r => r.studentId === studentId);
+        ).filter(r => r.studentId === studentId!);
     }, [allAttendance, studentId]);
 
     // Filtrar registros por rango de fechas
@@ -1680,9 +1578,9 @@ function TeacherAttendanceView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las secciones</SelectItem>
-                  {sections.map(section => (
+                  {sections?.map(section => (
                     <SelectItem key={section} value={section}>{section}</SelectItem>
-                  ))}
+                  )) || []}
                 </SelectContent>
               </Select>
             </div>
