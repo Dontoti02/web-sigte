@@ -107,6 +107,12 @@ const navItems = [
     label: 'Calendario Escolar',
     roles: ['admin', 'teacher', 'student', 'parent'],
   },
+  {
+    href: '/dashboard/cierre-ano',
+    icon: Upload,
+    label: 'Cierre de Año',
+    roles: ['admin'],
+  },
 ];
 
 

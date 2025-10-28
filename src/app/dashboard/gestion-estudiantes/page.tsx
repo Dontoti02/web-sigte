@@ -39,7 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
-import { UploadCloud, FileText, CheckCircle, Loader2, PlusCircle, Trash2, Filter, UserPlus, Search } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle, Loader2, PlusCircle, Trash2, Filter, UserPlus, Search, Users, GraduationCap, Library, UserCheck } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -668,7 +668,49 @@ export default function GestionEstudiantesPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Estudiantes</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{allStudents?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">Registrados en el sistema</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Grados Únicos</CardTitle>
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{uniqueGrades.length}</div>
+            <p className="text-xs text-muted-foreground">Niveles educativos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Secciones Únicas</CardTitle>
+            <Library className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{uniqueSections.length}</div>
+            <p className="text-xs text-muted-foreground">Grupos de clase</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Estudiantes Seleccionados</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{selectedStudents.length}</div>
+            <p className="text-xs text-muted-foreground">Para acciones en lote</p>
+          </CardContent>
+        </Card>
+      </div>
       <Card>
         <CardHeader>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -860,5 +902,3 @@ export default function GestionEstudiantesPage() {
     </div>
   );
 }
-
-    

@@ -311,7 +311,6 @@ export function AdminDashboard() {
                 <TabsList>
                   <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
                   <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-                  <TabsTrigger value="grados">Por Grado</TabsTrigger>
                 </TabsList>
               </div>
               
@@ -375,28 +374,6 @@ export function AdminDashboard() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="grados" className="mt-6">
-                <h3 className="text-center font-semibold text-lg mb-4">
-                  Tasa de Asistencia por Grado
-                </h3>
-                {gradeAttendanceData.length > 0 ? (
-                  <div className="h-72 w-full">
-                    <ResponsiveContainer>
-                      <BarChart data={gradeAttendanceData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="name" />
-                        <YAxis unit="%" />
-                        <Tooltip />
-                        <Bar dataKey="asistencia" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-72 flex items-center justify-center text-muted-foreground">
-                    No hay datos suficientes
-                  </div>
-                )}
-              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>

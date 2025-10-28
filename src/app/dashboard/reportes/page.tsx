@@ -1,6 +1,6 @@
 'use client';
-import { useState, useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Pie, PieChart, Cell, Legend } from 'recharts';
+import { useState, useMemo, useCallback } from 'react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ChartContainer } from '@/components/ui/chart';
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import {
     Select,
     SelectContent,
@@ -34,8 +34,9 @@ const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
 export default function ReportesPage() {
     const { firestore } = useFirebase();
     const { toast } = useToast();
-    const [selectedGrade, setSelectedGrade] = useState<string>('');
     const [selectedSection, setSelectedSection] = useState<string>('');
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
     const [isExporting, setIsExporting] = useState(false);
 
     // Cargar datos de Firebase
@@ -47,19 +48,17 @@ export default function ReportesPage() {
 
     const allStudents = users?.filter((user) => user.role === 'student');
 
-    // Obtener grados y secciones únicos
-    const gradeOrder = ['PRIMERO', 'SEGUNDO', 'TERCERO', 'CUARTO', 'QUINTO', 'Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 'primero', 'segundo', 'tercero', 'cuarto', 'quinto', '1°', '2°', '3°', '4°', '5°'];
-    const uniqueGrades = Array.from(new Set(allStudents?.map(s => s.grade).filter(Boolean))) as string[];
-    const sortedGrades = uniqueGrades.sort((a, b) => {
-        const indexA = gradeOrder.indexOf(a);
-        const indexB = gradeOrder.indexOf(b);
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-        return a.localeCompare(b, 'es');
-    });
-
+    // Obtener secciones únicas
     const uniqueSections = Array.from(new Set(allStudents?.map(s => s.section).filter(Boolean))) as string[];
+
+    // Obtener fechas disponibles de asistencias
+    const availableDates = useMemo(() => {
+        if (!allAttendanceData) return [];
+        const dates = Array.from(new Set(
+            allAttendanceData.map(att => format(new Date(att.date), 'yyyy-MM-dd'))
+        )).sort().reverse();
+        return dates;
+    }, [allAttendanceData]);
 
     // Calcular estadísticas generales
     const generalStats = useMemo(() => {
@@ -89,31 +88,45 @@ export default function ReportesPage() {
         };
     }, [allAttendanceData, allStudents]);
 
-    // Datos para gráfico de barras por grado
-    const gradeAttendanceData = useMemo(() => {
-        if (!allAttendanceData || !sortedGrades) return [];
+    // Datos para gráfico de líneas - Tendencia de asistencia por fecha
+    const attendanceTrendData = useMemo(() => {
+        if (!allAttendanceData) return [];
 
-        return sortedGrades.map(grade => {
-            const gradeAttendances = allAttendanceData.filter(a => a.grade === grade);
-            const total = gradeAttendances.reduce((sum, att) => sum + att.records.length, 0);
-            const present = gradeAttendances.reduce((sum, att) => 
-                sum + att.records.filter(r => r.status === 'present').length, 0
-            );
-            const late = gradeAttendances.reduce((sum, att) => 
-                sum + att.records.filter(r => r.status === 'late').length, 0
-            );
-            const absent = gradeAttendances.reduce((sum, att) => 
-                sum + att.records.filter(r => r.status === 'absent').length, 0
-            );
+        // Agrupar por fecha y calcular estadísticas
+        const dateMap = new Map<string, { present: number; late: number; absent: number; total: number }>();
 
-            return {
-                name: grade,
-                presentes: present,
-                tardanzas: late,
-                ausentes: absent,
-            };
+        allAttendanceData.forEach(att => {
+            const dateStr = format(new Date(att.date), 'dd/MM/yyyy');
+            const current = dateMap.get(dateStr) || { present: 0, late: 0, absent: 0, total: 0 };
+            
+            const presentCount = att.records.filter(r => r.status === 'present').length;
+            const lateCount = att.records.filter(r => r.status === 'late').length;
+            const absentCount = att.records.filter(r => r.status === 'absent').length;
+
+            current.present += presentCount;
+            current.late += lateCount;
+            current.absent += absentCount;
+            current.total += att.records.length;
+
+            dateMap.set(dateStr, current);
         });
-    }, [allAttendanceData, sortedGrades]);
+
+        // Convertir a array y ordenar por fecha
+        return Array.from(dateMap.entries())
+            .sort((a, b) => {
+                const dateA = new Date(a[0].split('/').reverse().join('-'));
+                const dateB = new Date(b[0].split('/').reverse().join('-'));
+                return dateA.getTime() - dateB.getTime();
+            })
+            .slice(-30) // Últimos 30 registros
+            .map(([date, stats]) => ({
+                date,
+                presentes: stats.present,
+                tardanzas: stats.late,
+                ausentes: stats.absent,
+                tasa: stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0,
+            }));
+    }, [allAttendanceData]);
 
     // Datos para gráfico circular
     const statusDistribution = useMemo(() => {
@@ -128,12 +141,12 @@ export default function ReportesPage() {
     }, [generalStats]);
 
     // Exportar a Excel
-    const exportToExcel = () => {
-        if (!selectedGrade || !selectedSection || !allAttendanceData) {
+    const exportToExcel = useCallback(() => {
+        if (!selectedSection || !allAttendanceData) {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'Selecciona un grado y sección primero.',
+                description: 'Selecciona una sección primero.',
             });
             return;
         }
@@ -141,15 +154,25 @@ export default function ReportesPage() {
         setIsExporting(true);
 
         try {
-            const filteredAttendances = allAttendanceData.filter(
-                a => a.grade === selectedGrade && a.section === selectedSection
-            ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            let filteredAttendances = allAttendanceData
+                .filter(a => a.section === selectedSection)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            // Aplicar filtro de fechas si están definidas
+            if (startDate || endDate) {
+                filteredAttendances = filteredAttendances.filter(att => {
+                    const attDate = format(new Date(att.date), 'yyyy-MM-dd');
+                    if (startDate && attDate < startDate) return false;
+                    if (endDate && attDate > endDate) return false;
+                    return true;
+                });
+            }
 
             if (filteredAttendances.length === 0) {
                 toast({
                     variant: 'destructive',
                     title: 'Sin datos',
-                    description: 'No hay asistencias registradas para este grado y sección.',
+                    description: 'No hay asistencias registradas para los filtros seleccionados.',
                 });
                 setIsExporting(false);
                 return;
@@ -181,7 +204,8 @@ export default function ReportesPage() {
                 { wch: 15 }
             ];
 
-            XLSX.writeFile(wb, `Asistencias_${selectedGrade}_${selectedSection}_${format(new Date(), 'ddMMyyyy')}.xlsx`);
+            const dateRange = startDate && endDate ? `_${startDate}_a_${endDate}` : '';
+            XLSX.writeFile(wb, `Asistencias_Seccion_${selectedSection}${dateRange}_${format(new Date(), 'ddMMyyyy')}.xlsx`);
 
             toast({
                 title: 'Excel Generado',
@@ -197,15 +221,15 @@ export default function ReportesPage() {
         } finally {
             setIsExporting(false);
         }
-    };
+    }, [selectedSection, startDate, endDate, allAttendanceData, toast]);
 
     // Exportar a PDF
-    const exportToPDF = () => {
-        if (!selectedGrade || !selectedSection || !allAttendanceData) {
+    const exportToPDF = useCallback(() => {
+        if (!selectedSection || !allAttendanceData) {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'Selecciona un grado y sección primero.',
+                description: 'Selecciona una sección primero.',
             });
             return;
         }
@@ -213,15 +237,25 @@ export default function ReportesPage() {
         setIsExporting(true);
 
         try {
-            const filteredAttendances = allAttendanceData.filter(
-                a => a.grade === selectedGrade && a.section === selectedSection
-            ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            let filteredAttendances = allAttendanceData
+                .filter(a => a.section === selectedSection)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            // Aplicar filtro de fechas si están definidas
+            if (startDate || endDate) {
+                filteredAttendances = filteredAttendances.filter(att => {
+                    const attDate = format(new Date(att.date), 'yyyy-MM-dd');
+                    if (startDate && attDate < startDate) return false;
+                    if (endDate && attDate > endDate) return false;
+                    return true;
+                });
+            }
 
             if (filteredAttendances.length === 0) {
                 toast({
                     variant: 'destructive',
                     title: 'Sin datos',
-                    description: 'No hay asistencias registradas para este grado y sección.',
+                    description: 'No hay asistencias registradas para los filtros seleccionados.',
                 });
                 setIsExporting(false);
                 return;
@@ -233,9 +267,13 @@ export default function ReportesPage() {
             doc.setFontSize(18);
             doc.text(`Reporte de Asistencias`, 14, 20);
             doc.setFontSize(12);
-            doc.text(`${selectedGrade} - Sección ${selectedSection}`, 14, 28);
+            doc.text(`Sección ${selectedSection}`, 14, 28);
             doc.setFontSize(10);
-            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`, 14, 34);
+            const dateRangeText = startDate && endDate 
+                ? `Período: ${format(new Date(startDate), 'dd/MM/yyyy')} - ${format(new Date(endDate), 'dd/MM/yyyy')}`
+                : 'Todos los registros';
+            doc.text(dateRangeText, 14, 34);
+            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`, 14, 40);
 
             // Estadísticas
             const stats = {
@@ -246,7 +284,7 @@ export default function ReportesPage() {
             };
 
             doc.setFontSize(10);
-            doc.text(`Total Registros: ${stats.total} | Presentes: ${stats.present} | Tardanzas: ${stats.late} | Ausentes: ${stats.absent}`, 14, 42);
+            doc.text(`Total Registros: ${stats.total} | Presentes: ${stats.present} | Tardanzas: ${stats.late} | Ausentes: ${stats.absent}`, 14, 48);
 
             // Tabla
             const tableData = filteredAttendances.flatMap(att => 
@@ -264,13 +302,14 @@ export default function ReportesPage() {
             autoTable(doc, {
                 head: [['Fecha', 'Estudiante', 'Estado', 'Hora']],
                 body: tableData,
-                startY: 48,
+                startY: 54,
                 styles: { fontSize: 8, cellPadding: 2 },
                 headStyles: { fillColor: [63, 81, 181], fontStyle: 'bold' },
                 alternateRowStyles: { fillColor: [245, 245, 245] },
             });
 
-            doc.save(`Asistencias_${selectedGrade}_${selectedSection}_${format(new Date(), 'ddMMyyyy')}.pdf`);
+            const dateRange = startDate && endDate ? `_${startDate}_a_${endDate}` : '';
+            doc.save(`Asistencias_Seccion_${selectedSection}${dateRange}_${format(new Date(), 'ddMMyyyy')}.pdf`);
 
             toast({
                 title: 'PDF Generado',
@@ -286,7 +325,7 @@ export default function ReportesPage() {
         } finally {
             setIsExporting(false);
         }
-    };
+    }, [selectedSection, startDate, endDate, allAttendanceData, toast]);
 
     return (
         <div className="grid gap-6">
@@ -330,22 +369,30 @@ export default function ReportesPage() {
             <div className="grid md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Asistencias por Grado</CardTitle>
-                        <CardDescription>Distribución de presentes, tardanzas y ausentes por grado.</CardDescription>
+                        <CardTitle>Tendencia de Asistencia</CardTitle>
+                        <CardDescription>Evolución de asistencia en los últimos registros.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={{}} className="h-80">
+                        <ChartContainer
+                            config={{
+                                presentes: { label: 'Presentes', color: '#10b981' },
+                                tardanzas: { label: 'Tardanzas', color: '#f59e0b' },
+                                ausentes: { label: 'Ausentes', color: '#ef4444' },
+                                tasa: { label: 'Tasa %', color: '#3b82f6' },
+                            }}
+                            className="h-80"
+                        >
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={gradeAttendanceData}>
+                                <LineChart data={attendanceTrendData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
                                     <YAxis tickLine={false} axisLine={false} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="presentes" fill="#10b981" radius={[4, 4, 0, 0]} name="Presentes" />
-                                    <Bar dataKey="tardanzas" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Tardanzas" />
-                                    <Bar dataKey="ausentes" fill="#ef4444" radius={[4, 4, 0, 0]} name="Ausentes" />
-                                </BarChart>
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <ChartLegend content={<ChartLegendContent />} />
+                                    <Line type="monotone" dataKey="presentes" stroke="#10b981" strokeWidth={2} name="Presentes" dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="tardanzas" stroke="#f59e0b" strokeWidth={2} name="Tardanzas" dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="ausentes" stroke="#ef4444" strokeWidth={2} name="Ausentes" dot={{ r: 4 }} />
+                                </LineChart>
                             </ResponsiveContainer>
                         </ChartContainer>
                     </CardContent>
@@ -358,25 +405,24 @@ export default function ReportesPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{}} className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Tooltip />
-                                    <Legend />
-                                    <Pie 
-                                        data={statusDistribution} 
-                                        dataKey="value" 
-                                        nameKey="name" 
-                                        cx="50%" 
-                                        cy="50%" 
-                                        outerRadius={100}
-                                        label
-                                    >
-                                        {statusDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <PieChart>
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <ChartLegend content={<ChartLegendContent />} />
+                                <Pie 
+                                    data={statusDistribution} 
+                                    dataKey="value" 
+                                    nameKey="name" 
+                                    cx="50%" 
+                                    cy="50%" 
+                                    innerRadius={60}
+                                    outerRadius={100}
+                                    labelLine={false}
+                                >
+                                    {statusDistribution.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                            </PieChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
@@ -386,31 +432,15 @@ export default function ReportesPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Exportar Reportes</CardTitle>
-                    <CardDescription>Genera reportes de asistencia en formato PDF o Excel por grado y sección.</CardDescription>
+                    <CardDescription>Genera reportes de asistencia en formato PDF o Excel por sección y rango de fechas.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label>Grado</Label>
-                            <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona un grado" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {sortedGrades.map(grade => (
-                                        <SelectItem key={grade} value={grade}>
-                                            {grade}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <Label>Sección</Label>
                             <Select 
                                 value={selectedSection} 
                                 onValueChange={setSelectedSection}
-                                disabled={!selectedGrade}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona una sección" />
@@ -424,12 +454,42 @@ export default function ReportesPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div>
+                            <Label>Fecha Inicio</Label>
+                            <Select value={startDate} onValueChange={setStartDate}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Desde..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableDates.map(date => (
+                                        <SelectItem key={date} value={date}>
+                                            {format(new Date(date), 'dd/MM/yyyy')}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Fecha Fin</Label>
+                            <Select value={endDate} onValueChange={setEndDate}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Hasta..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableDates.map(date => (
+                                        <SelectItem key={date} value={date}>
+                                            {format(new Date(date), 'dd/MM/yyyy')}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="flex gap-4">
                         <Button 
                             onClick={exportToExcel}
-                            disabled={!selectedGrade || !selectedSection || isExporting}
+                            disabled={!selectedSection || isExporting}
                             className="flex-1"
                         >
                             {isExporting ? (
@@ -441,7 +501,7 @@ export default function ReportesPage() {
                         </Button>
                         <Button 
                             onClick={exportToPDF}
-                            disabled={!selectedGrade || !selectedSection || isExporting}
+                            disabled={!selectedSection || isExporting}
                             variant="outline"
                             className="flex-1"
                         >

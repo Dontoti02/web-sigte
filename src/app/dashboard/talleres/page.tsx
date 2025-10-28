@@ -82,7 +82,20 @@ export default function TalleresPage() {
       const userSection = (user as any).section;
 
       return workshops.filter(workshop => {
-        // Si el taller no tiene restricciones, mostrarlo
+        const isStudentEnrolled = user?.id ? workshop.participants.includes(user.id) : false;
+
+        // 1. Si el estudiante ya está inscrito, mostrar siempre el taller.
+        if (isStudentEnrolled) {
+          return true;
+        }
+
+        // 2. Si no está inscrito, aplicar la lógica de restricciones y disponibilidad.
+        // No mostrar talleres inactivos para inscribirse.
+        if (workshop.status !== 'active') {
+          return false;
+        }
+        
+        // Si el taller no tiene restricciones, mostrarlo.
         if (!workshop.restrictByGradeSection) {
           return true;
         }
@@ -90,7 +103,7 @@ export default function TalleresPage() {
         const hasGradeRestrictions = workshop.allowedGrades && workshop.allowedGrades.length > 0;
         const hasSectionRestrictions = workshop.allowedSections && workshop.allowedSections.length > 0;
 
-        // Si no hay restricciones específicas, mostrar el taller
+        // Si no hay listas de restricciones específicas, es abierto para todos.
         if (!hasGradeRestrictions && !hasSectionRestrictions) {
           return true;
         }
@@ -109,6 +122,7 @@ export default function TalleresPage() {
           return workshop.allowedSections!.includes(userSection || '');
         }
 
+        // Si restrictByGradeSection es true pero no hay listas, por defecto se muestra.
         return true;
       });
     }
@@ -438,7 +452,7 @@ export default function TalleresPage() {
                       <>
                         <p className="text-sm font-semibold mb-2 text-foreground">Hijos Inscritos:</p>
                         <div className="flex flex-wrap gap-2">
-                          {enrolledChildren.map(child => (
+                          {enrolledChildren.map((child: { id: string; name: string }) => (
                             <Badge key={child.id} variant="secondary">{child.name}</Badge>
                           ))}
                         </div>

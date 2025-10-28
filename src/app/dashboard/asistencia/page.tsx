@@ -930,19 +930,19 @@ function AdminTeacherAttendance() {
                               >
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="present" id={`present-${record.studentId}`} />
-                                  <Label htmlFor={`present-${record.studentId}`}>Presente</Label>
+                                  <Label htmlFor={`present-${record.studentId}`} className="font-semibold text-green-600">Presente</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="late" id={`late-${record.studentId}`} />
-                                  <Label htmlFor={`late-${record.studentId}`}>Tardanza</Label>
+                                  <Label htmlFor={`late-${record.studentId}`} className="font-semibold text-yellow-600">Tardanza</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="justified" id={`justified-${record.studentId}`} />
-                                  <Label htmlFor={`justified-${record.studentId}`}>Justificada</Label>
+                                  <Label htmlFor={`justified-${record.studentId}`} className="font-semibold text-blue-600">Justificada</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="absent" id={`absent-${record.studentId}`} />
-                                  <Label htmlFor={`absent-${record.studentId}`}>Faltó</Label>
+                                  <Label htmlFor={`absent-${record.studentId}`} className="font-semibold text-red-600">Faltó</Label>
                                 </div>
                               </RadioGroup>
                             </TableCell>
@@ -1370,7 +1370,6 @@ function TeacherAttendanceView() {
   const { user, role } = useRole();
   const { firestore } = useFirebase();
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'grade'>('all');
-  const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [selectedSection, setSelectedSection] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -1381,35 +1380,20 @@ function TeacherAttendanceView() {
   const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users } = useCollection<User>(usersQuery);
 
-  // Obtener grados y secciones únicos
-  const grades = useMemo(() => {
-    const gradeOrder = ['PRIMERO', 'SEGUNDO', 'TERCERO', 'CUARTO', 'QUINTO', 'Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 'primero', 'segundo', 'tercero', 'cuarto', 'quinto', '1°', '2°', '3°', '4°', '5°'];
-    const uniqueGrades = new Set(users?.filter(u => u.role === 'student' && u.grade).map(u => u.grade));
-    return Array.from(uniqueGrades).filter((g): g is string => !!g).sort((a, b) => {
-      const indexA = gradeOrder.indexOf(a);
-      const indexB = gradeOrder.indexOf(b);
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
-      return a.localeCompare(b, 'es');
-    });
-  }, [users]);
-
   const sections = useMemo(() => {
     const uniqueSections = new Set(
-      users?.filter(u => u.role === 'student' && u.section && (selectedGrade === 'all' || u.grade === selectedGrade))
+      users?.filter(u => u.role === 'student' && u.section)
         .map(u => u.section)
     );
     return Array.from(uniqueSections).sort();
-  }, [users, selectedGrade]);
+  }, [users]);
 
   // Filtrar asistencias según selección
   const filteredAttendance = useMemo(() => {
     if (!allAttendance) return [];
     
     return allAttendance.filter(a => {
-      // Filtrar por grado y sección si están seleccionados
-      if (selectedGrade !== 'all' && a.grade !== selectedGrade) return false;
+      // Filtrar por sección si está seleccionada
       if (selectedSection !== 'all' && a.section !== selectedSection) return false;
       
       // Filtrar por rango de fechas
@@ -1418,7 +1402,7 @@ function TeacherAttendanceView() {
       
       return true;
     });
-  }, [allAttendance, selectedGrade, selectedSection, startDate, endDate]);
+  }, [allAttendance, selectedSection, startDate, endDate]);
 
   // Calcular estadísticas
   const stats = useMemo(() => {
@@ -1557,20 +1541,6 @@ function TeacherAttendanceView() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Grado</Label>
-              <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar grado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los grados</SelectItem>
-                  {grades.map(grade => (
-                    <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Sección</Label>
               <Select value={selectedSection} onValueChange={setSelectedSection}>
                 <SelectTrigger>
@@ -1609,12 +1579,11 @@ function TeacherAttendanceView() {
             </div>
           </div>
 
-          {(selectedGrade !== 'all' || selectedSection !== 'all' || startDate || endDate) && (
+          {(selectedSection !== 'all' || startDate || endDate) && (
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => {
-                setSelectedGrade('all');
                 setSelectedSection('all');
                 setStartDate('');
                 setEndDate('');
@@ -1636,7 +1605,6 @@ function TeacherAttendanceView() {
           </CardTitle>
           <CardDescription>
             {filteredAttendance.length} registro(s) de asistencia
-            {selectedGrade !== 'all' && ` - Grado: ${selectedGrade}`}
             {selectedSection !== 'all' && ` - Sección: ${selectedSection}`}
           </CardDescription>
         </CardHeader>
@@ -1646,7 +1614,7 @@ function TeacherAttendanceView() {
               <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-semibold">No hay registros de asistencia</p>
               <p className="text-sm mt-2">
-                {selectedGrade !== 'all' || selectedSection !== 'all' 
+                {selectedSection !== 'all' 
                   ? 'Intenta con otros filtros'
                   : 'El administrador aún no ha registrado asistencias'}
               </p>
@@ -1657,7 +1625,6 @@ function TeacherAttendanceView() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Fecha</TableHead>
-                    <TableHead>Grado</TableHead>
                     <TableHead>Sección</TableHead>
                     <TableHead>Estudiante</TableHead>
                     <TableHead>Estado</TableHead>
@@ -1672,9 +1639,6 @@ function TeacherAttendanceView() {
                         <TableRow key={`${attendance.date}-${record.studentId}-${attendanceIdx}-${recordIdx}`}>
                           <TableCell className="font-medium">
                             {format(new Date(attendance.date), "dd 'de' MMMM, yyyy", { locale: es })}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{attendance.grade}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{attendance.section}</Badge>
