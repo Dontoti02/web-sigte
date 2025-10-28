@@ -178,6 +178,11 @@ export function LoginForm() {
         </form>
       </Form>
       <div className="mt-4 text-center text-sm">
+        <Link href="/forgot-password" className="underline">
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </div>
+      <div className="mt-4 text-center text-sm">
         Si eres padre o madre de familia{" "}
         <Link href="/register" className="underline">
           Regístrate Aqui
