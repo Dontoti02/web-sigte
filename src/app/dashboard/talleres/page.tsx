@@ -106,15 +106,42 @@ export default function TalleresPage() {
   }, [role, user, workshops]);
 
   const handleEnroll = async (workshop: Workshop) => {
-    if (!user || !user.id || workshop.status !== 'active') {
-      console.log('Cannot enroll:', { user, userId: user?.id, status: workshop.status });
+    // DEBUG COMPLETO
+    console.log('🔍 INSCRIPCIÓN DEBUG COMPLETO:', {
+      user: user,
+      userId: user?.id,
+      userRole: (user as any)?.role,
+      userGrade: (user as any)?.grade,
+      userSection: (user as any)?.section,
+      workshopStatus: workshop.status,
+      workshopTitle: workshop.title,
+      restrictByGradeSection: workshop.restrictByGradeSection,
+      allowedGrades: workshop.allowedGrades,
+      allowedSections: workshop.allowedSections,
+      participants: workshop.participants
+    });
+
+    if (!user || !user.id) {
+      console.log('❌ No user or user.id');
       toast({
         variant: 'destructive',
-        title: 'Error de Inscripción',
-        description: 'No se puede inscribir en este momento. Verifica tu sesión.',
+        title: 'Error de Usuario',
+        description: 'No se pudo identificar tu usuario. Inicia sesión nuevamente.',
       });
       return;
     }
+
+    if (workshop.status !== 'active') {
+      console.log('❌ Workshop not active:', workshop.status);
+      toast({
+        variant: 'destructive',
+        title: 'Taller Inactivo',
+        description: 'Este taller no está activo para inscripciones.',
+      });
+      return;
+    }
+
+    console.log('✅ Validaciones iniciales pasadas');
 
     // Validar capacidad máxima
     if (workshop.participants.length >= workshop.maxParticipants) {

@@ -36,9 +36,24 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Trash2, UserX, Loader2 } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Trash2, 
+  UserX, 
+  Loader2, 
+  Users, 
+  Calendar, 
+  Clock, 
+  MapPin,
+  GraduationCap,
+  Shield,
+  Edit
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export default function WorkshopDetailPage() {
   const params = useParams();
