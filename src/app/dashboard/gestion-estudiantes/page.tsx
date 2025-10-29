@@ -434,7 +434,7 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
                 Carga Masiva de Estudiantes
             </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader>
                 <DialogTitle>Carga Masiva de Estudiantes</DialogTitle>
                 <CardDescription>
@@ -443,7 +443,7 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
                     Asegúrate que las columnas sean: <strong>nombres, apellido_paterno, apellido_materno, grado, seccion</strong>.
                 </CardDescription>
             </DialogHeader>
-            <div className="space-y-6 py-4">
+            <div className="space-y-6 py-4 overflow-y-auto flex-1">
                 <div 
                     className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-accent hover:bg-accent/5 cursor-pointer transition-colors"
                     onClick={handleUploadClick}
@@ -476,31 +476,33 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
                 )}
                 
                 {importedData && !isRegistering && (
-                    <div>
-                        <h3 className="text-lg font-semibold mb-4">Vista Previa de Datos ({importedData.length} estudiantes)</h3>
-                        <div className="border rounded-lg overflow-x-auto max-h-64">
-                            <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead>Nombres</TableHead>
-                                <TableHead>Apellidos</TableHead>
-                                <TableHead>Grado</TableHead>
-                                <TableHead>Sección</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {importedData.slice(0, 5).map((student, index) => (
-                                <TableRow key={index}>
-                                    <TableCell className="font-medium">{student.nombres}</TableCell>
-                                    <TableCell>{`${student.apellido_paterno || ''} ${student.apellido_materno || ''}`.trim()}</TableCell>
-                                    <TableCell>{student.grado}</TableCell>
-                                    <TableCell>{student.seccion}</TableCell>
-                                </TableRow>
-                                ))}
-                            </TableBody>
-                            </Table>
+                    <div className="space-y-3">
+                        <h3 className="text-lg font-semibold">Vista Previa de Datos ({importedData.length} estudiantes)</h3>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="max-h-48 overflow-y-auto">
+                                <Table>
+                                <TableHeader className="sticky top-0 bg-background">
+                                    <TableRow>
+                                    <TableHead className="text-xs">Nombres</TableHead>
+                                    <TableHead className="text-xs">Apellidos</TableHead>
+                                    <TableHead className="text-xs">Grado</TableHead>
+                                    <TableHead className="text-xs">Sección</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {importedData.slice(0, 10).map((student, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="font-medium text-sm py-2">{student.nombres}</TableCell>
+                                        <TableCell className="text-sm py-2">{`${student.apellido_paterno || ''} ${student.apellido_materno || ''}`.trim()}</TableCell>
+                                        <TableCell className="text-sm py-2">{student.grado}</TableCell>
+                                        <TableCell className="text-sm py-2">{student.seccion}</TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                                </Table>
+                            </div>
                         </div>
-                        {importedData.length > 5 && <p className="text-sm text-center text-muted-foreground mt-2">Mostrando los primeros 5 de {importedData.length} registros.</p>}
+                        {importedData.length > 10 && <p className="text-xs text-center text-muted-foreground">Mostrando los primeros 10 de {importedData.length} registros.</p>}
                     </div>
                 )}
                 
