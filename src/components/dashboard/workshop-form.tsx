@@ -49,9 +49,8 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Estados para restricciones
+  // Estados para restricciones (solo secciones)
   const [restrictByGradeSection, setRestrictByGradeSection] = useState(workshop?.restrictByGradeSection || false);
-  const [allowedGrades, setAllowedGrades] = useState<string[]>(workshop?.allowedGrades || []);
   const [allowedSections, setAllowedSections] = useState<string[]>(workshop?.allowedSections || []);
 
   const teachersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
@@ -87,28 +86,12 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
     );
   };
 
-  const handleGradeToggle = (grade: string) => {
-    setAllowedGrades(prev =>
-      prev.includes(grade)
-        ? prev.filter(g => g !== grade)
-        : [...prev, grade]
-    );
-  };
-
   const handleSectionToggle = (section: string) => {
     setAllowedSections(prev =>
       prev.includes(section)
         ? prev.filter(s => s !== section)
         : [...prev, section]
     );
-  };
-
-  const handleSelectAllGrades = () => {
-    if (allowedGrades.length === availableGrades.length) {
-      setAllowedGrades([]);
-    } else {
-      setAllowedGrades([...availableGrades]);
-    }
   };
 
   const handleSelectAllSections = () => {
@@ -183,7 +166,7 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
         maxParticipants,
         enrollmentDeadline: new Date(enrollmentDeadline).toISOString(),
         restrictByGradeSection,
-        allowedGrades: restrictByGradeSection ? allowedGrades : [],
+        allowedGrades: [], // Ya no se usa, siempre vacío
         allowedSections: restrictByGradeSection ? allowedSections : [],
       };
 
@@ -382,40 +365,8 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
           <div className="space-y-4 pt-4 border-t">
             <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3">
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>ℹ️ Importante:</strong> Si no seleccionas ningún grado o sección, el taller estará disponible para todos los estudiantes.
+                <strong>ℹ️ Importante:</strong> Si no seleccionas ninguna sección, el taller estará disponible para todos los estudiantes.
               </p>
-            </div>
-
-            {/* Grados Permitidos */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="font-medium">Grados Permitidos</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSelectAllGrades}
-                  className="text-xs"
-                >
-                  {allowedGrades.length === availableGrades.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
-                </Button>
-              </div>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                {availableGrades.map((grade) => (
-                  <div key={grade} className="flex items-center space-x-2 border rounded-md p-2 hover:bg-muted/50">
-                    <input
-                      type="checkbox"
-                      id={`grade-${grade}`}
-                      className="h-4 w-4 rounded border-input"
-                      checked={allowedGrades.includes(grade)}
-                      onChange={() => handleGradeToggle(grade)}
-                    />
-                    <Label htmlFor={`grade-${grade}`} className="font-normal text-sm cursor-pointer flex-1">
-                      {grade}
-                    </Label>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Secciones Permitidas */}
