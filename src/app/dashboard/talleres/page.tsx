@@ -69,9 +69,14 @@ export default function TalleresPage() {
 
   // Filtrar talleres según el rol
   const filteredWorkshops = workshops?.filter(workshop => {
-    // Admin y teacher ven todos los talleres
-    if (role === 'admin' || role === 'teacher') {
+    // Admin ve todos los talleres
+    if (role === 'admin') {
       return true;
+    }
+    
+    // Teacher solo ve los talleres donde está asignado como docente
+    if (role === 'teacher') {
+      return workshop.teacherId === user?.id;
     }
     
     // Estudiantes solo ven talleres activos
