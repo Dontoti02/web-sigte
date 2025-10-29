@@ -144,6 +144,16 @@ export default function TalleresPage() {
       const userSection = (user as any).section;
       const userRole = (user as any).role;
       
+      // Debug logging
+      console.log('Validando restricciones:', {
+        userGrade,
+        userSection,
+        userRole,
+        allowedGrades: workshop.allowedGrades,
+        allowedSections: workshop.allowedSections,
+        restrictByGradeSection: workshop.restrictByGradeSection
+      });
+      
       // Si el usuario es admin o teacher, permitir inscripción sin restricciones
       if (userRole === 'admin' || userRole === 'teacher') {
         console.log('Usuario admin/teacher puede inscribirse sin restricciones');
@@ -157,28 +167,34 @@ export default function TalleresPage() {
           // No hay restricciones específicas, permitir inscripción
           console.log('Restricciones activas pero sin grados/secciones específicas definidas');
         } else {
-          // Verificar si el usuario tiene grado y sección asignados
-          if (!userGrade && !userSection) {
-            toast({
-              variant: 'destructive',
-              title: 'Perfil Incompleto',
-              description: 'Tu cuenta no tiene grado y sección asignados. Contacta al administrador para completar tu perfil.',
-            });
-            return;
-          }
-          
           // Hay restricciones específicas, validar
           let canEnrollByGrade = !hasGradeRestrictions; // Si no hay restricción de grado, puede inscribirse
           let canEnrollBySection = !hasSectionRestrictions; // Si no hay restricción de sección, puede inscribirse
           
           // Verificar restricción de grado si existe
           if (hasGradeRestrictions) {
-            canEnrollByGrade = workshop.allowedGrades!.includes(userGrade || '');
+            if (!userGrade) {
+              toast({
+                variant: 'destructive',
+                title: 'Perfil Incompleto',
+                description: 'Tu cuenta no tiene grado asignado y este taller requiere un grado específico. Contacta al administrador.',
+              });
+              return;
+            }
+            canEnrollByGrade = workshop.allowedGrades!.includes(userGrade);
           }
           
           // Verificar restricción de sección si existe
           if (hasSectionRestrictions) {
-            canEnrollBySection = workshop.allowedSections!.includes(userSection || '');
+            if (!userSection) {
+              toast({
+                variant: 'destructive',
+                title: 'Perfil Incompleto',
+                description: 'Tu cuenta no tiene sección asignada y este taller requiere una sección específica. Contacta al administrador.',
+              });
+              return;
+            }
+            canEnrollBySection = workshop.allowedSections!.includes(userSection);
           }
           
           // El usuario debe cumplir TODAS las restricciones que existan
