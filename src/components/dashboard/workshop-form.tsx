@@ -165,10 +165,16 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
         status: workshop?.status || 'active',
         maxParticipants,
         enrollmentDeadline: new Date(enrollmentDeadline).toISOString(),
-        restrictByGradeSection,
+        restrictByGradeSection: restrictByGradeSection, // Asegurar que se guarde correctamente
         allowedGrades: [], // Ya no se usa, siempre vacío
-        allowedSections: restrictByGradeSection ? allowedSections : [],
+        allowedSections: restrictByGradeSection && allowedSections.length > 0 ? allowedSections : [],
       };
+
+      console.log('💾 Guardando taller con restricciones:', {
+        restrictByGradeSection,
+        allowedSections,
+        workshopData
+      });
 
       if (workshop) {
         const workshopDocRef = doc(firestore, 'workshops', workshop.id);

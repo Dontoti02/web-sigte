@@ -86,25 +86,37 @@ export default function TalleresPage() {
         return false;
       }
       
+      const userSection = (user as any)?.section;
+      
+      console.log('🔍 Filtrando taller para estudiante:', {
+        tallerTitulo: workshop.title,
+        restrictByGradeSection: workshop.restrictByGradeSection,
+        allowedSections: workshop.allowedSections,
+        userSection: userSection
+      });
+      
       // Si no tiene restricciones, mostrar
       if (!workshop.restrictByGradeSection) {
+        console.log('✅ Sin restricciones - mostrar');
         return true;
       }
       
       // Si tiene restricciones, verificar sección
-      const userSection = (user as any)?.section;
-      
       // Si hay restricciones de sección
       if (workshop.allowedSections && workshop.allowedSections.length > 0) {
         // Si el usuario no tiene sección, mostrar el taller
         if (!userSection) {
+          console.log('✅ Usuario sin sección - mostrar');
           return true;
         }
         // Si tiene sección, solo mostrar si está en la lista permitida
-        return workshop.allowedSections.includes(userSection);
+        const canView = workshop.allowedSections.includes(userSection);
+        console.log(canView ? '✅ Sección permitida - mostrar' : '❌ Sección NO permitida - ocultar');
+        return canView;
       }
       
       // Si no hay restricciones específicas, mostrar
+      console.log('✅ Sin restricciones específicas - mostrar');
       return true;
     }
     
