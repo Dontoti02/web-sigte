@@ -79,9 +79,33 @@ export default function TalleresPage() {
       return workshop.teacherId === user?.id;
     }
     
-    // Estudiantes solo ven talleres activos
+    // Estudiantes: filtrar por estado activo Y restricciones
     if (role === 'student') {
-      return workshop.status === 'active';
+      // Debe ser activo
+      if (workshop.status !== 'active') {
+        return false;
+      }
+      
+      // Si no tiene restricciones, mostrar
+      if (!workshop.restrictByGradeSection) {
+        return true;
+      }
+      
+      // Si tiene restricciones, verificar sección
+      const userSection = (user as any)?.section;
+      
+      // Si hay restricciones de sección
+      if (workshop.allowedSections && workshop.allowedSections.length > 0) {
+        // Si el usuario no tiene sección, mostrar el taller
+        if (!userSection) {
+          return true;
+        }
+        // Si tiene sección, solo mostrar si está en la lista permitida
+        return workshop.allowedSections.includes(userSection);
+      }
+      
+      // Si no hay restricciones específicas, mostrar
+      return true;
     }
     
     return false;
