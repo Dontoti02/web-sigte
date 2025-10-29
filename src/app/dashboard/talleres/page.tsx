@@ -95,34 +95,8 @@ export default function TalleresPage() {
           return false;
         }
         
-        // Si el taller no tiene restricciones, mostrarlo.
-        if (!workshop.restrictByGradeSection) {
-          return true;
-        }
-
-        const hasGradeRestrictions = workshop.allowedGrades && workshop.allowedGrades.length > 0;
-        const hasSectionRestrictions = workshop.allowedSections && workshop.allowedSections.length > 0;
-
-        // Si no hay listas de restricciones específicas, es abierto para todos.
-        if (!hasGradeRestrictions && !hasSectionRestrictions) {
-          return true;
-        }
-
-        // Verificar si el estudiante cumple con las restricciones
-        if (hasGradeRestrictions && hasSectionRestrictions) {
-          // Ambas restricciones: debe cumplir ambas
-          const gradeAllowed = workshop.allowedGrades!.includes(userGrade || '');
-          const sectionAllowed = workshop.allowedSections!.includes(userSection || '');
-          return gradeAllowed && sectionAllowed;
-        } else if (hasGradeRestrictions) {
-          // Solo restricción de grado
-          return workshop.allowedGrades!.includes(userGrade || '');
-        } else if (hasSectionRestrictions) {
-          // Solo restricción de sección
-          return workshop.allowedSections!.includes(userSection || '');
-        }
-
-        // Si restrictByGradeSection es true pero no hay listas, por defecto se muestra.
+        // Mostrar todos los talleres activos independientemente de las restricciones
+        // Las restricciones solo afectan la capacidad de inscribirse, no la visibilidad
         return true;
       });
     }
@@ -162,6 +136,33 @@ export default function TalleresPage() {
         description: `La fecha límite de inscripción para "${workshop.title}" ha vencido.`,
       });
       return;
+    }
+
+    // Validar restricciones de grado y sección
+    if (workshop.restrictByGradeSection) {
+      const userGrade = (user as any).grade;
+      const userSection = (user as any).section;
+      
+      const hasGradeRestrictions = workshop.allowedGrades && workshop.allowedGrades.length > 0;
+      const hasSectionRestrictions = workshop.allowedSections && workshop.allowedSections.length > 0;
+      
+      if (hasGradeRestrictions && !workshop.allowedGrades!.includes(userGrade || '')) {
+        toast({
+          variant: 'destructive',
+          title: 'Restricción de Grado',
+          description: `Este taller está restringido a los grados: ${workshop.allowedGrades!.join(', ')}.`,
+        });
+        return;
+      }
+      
+      if (hasSectionRestrictions && !workshop.allowedSections!.includes(userSection || '')) {
+        toast({
+          variant: 'destructive',
+          title: 'Restricción de Sección',
+          description: `Este taller está restringido a las secciones: ${workshop.allowedSections!.join(', ')}.`,
+        });
+        return;
+      }
     }
     
     try {

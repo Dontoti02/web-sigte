@@ -59,9 +59,11 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
   const teachers = users?.filter(u => u.role === 'teacher');
   
   // Obtener grados y secciones únicos de los estudiantes
-  const allStudents = users?.filter(u => u.role === 'student');
   const availableGrades = ['PRIMERO', 'SEGUNDO', 'TERCERO', 'CUARTO', 'QUINTO'];
-  const availableSections = Array.from(new Set(allStudents?.map(s => s.section).filter(Boolean))) as string[];
+  const availableSections = [
+    '1A', '1B', '1C', '1D', '2A', '2B', '2C', '2D', '3A', '3B', '3C', '3D',
+    '4A', '4B', '4C', '4D', '5A', '5B', '5C', '5D'
+  ];
   
   const timeSlots = Array.from({ length: 20 }, (_, i) => {
     const hour = Math.floor(i / 2) + 8;
@@ -398,7 +400,7 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
                   {allowedGrades.length === availableGrades.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
                 </Button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                 {availableGrades.map((grade) => (
                   <div key={grade} className="flex items-center space-x-2 border rounded-md p-2 hover:bg-muted/50">
                     <input
