@@ -86,13 +86,19 @@ export default function TalleresPage() {
         return false;
       }
       
-      const userSection = (user as any)?.section;
+      // Obtener sección del usuario desde la colección users
+      const userSection = (user as any)?.section || null;
       
-      console.log('🔍 Filtrando taller para estudiante:', {
+      console.log('🔍 FILTRADO DETALLADO:', {
         tallerTitulo: workshop.title,
+        userId: user?.id,
+        userCompleto: user,
+        userSection: userSection,
+        tipoUserSection: typeof userSection,
         restrictByGradeSection: workshop.restrictByGradeSection,
+        tipoRestrictByGradeSection: typeof workshop.restrictByGradeSection,
         allowedSections: workshop.allowedSections,
-        userSection: userSection
+        tipoAllowedSections: typeof workshop.allowedSections
       });
       
       // Si no tiene restricciones, mostrar a todos
@@ -171,12 +177,17 @@ export default function TalleresPage() {
 
     // Validar restricciones de sección (solo para estudiantes)
     if (role === 'student' && workshop.restrictByGradeSection === true) {
-      const userSection = (user as any).section;
+      // Obtener sección del usuario desde la colección users
+      const userSection = (user as any)?.section || null;
 
-      console.log('🔒 Validando restricciones de inscripción:', {
-        userSection,
+      console.log('🔒 VALIDACIÓN INSCRIPCIÓN DETALLADA:', {
+        userId: user?.id,
+        userEmail: user?.email,
+        userSection: userSection,
+        tipoUserSection: typeof userSection,
         allowedSections: workshop.allowedSections,
-        restrictByGradeSection: workshop.restrictByGradeSection
+        restrictByGradeSection: workshop.restrictByGradeSection,
+        comparacion: workshop.allowedSections?.includes(userSection)
       });
 
       // Si hay restricciones de sección configuradas
