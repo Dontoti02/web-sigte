@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,6 +56,21 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
   const teachersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users } = useCollection<User>(teachersQuery);
   const teachers = users?.filter(u => u.role === 'teacher');
+  
+  // Cargar datos del taller cuando se edita
+  useEffect(() => {
+    if (workshop) {
+      console.log('📖 Cargando datos del taller para editar:', {
+        id: workshop.id,
+        title: workshop.title,
+        restrictByGradeSection: workshop.restrictByGradeSection,
+        allowedSections: workshop.allowedSections
+      });
+      
+      setRestrictByGradeSection(workshop.restrictByGradeSection || false);
+      setAllowedSections(workshop.allowedSections || []);
+    }
+  }, [workshop]);
   
   // Obtener grados y secciones únicos de los estudiantes
   const availableGrades = ['PRIMERO', 'SEGUNDO', 'TERCERO', 'CUARTO', 'QUINTO'];
@@ -178,11 +193,19 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
 
       if (workshop) {
         const workshopDocRef = doc(firestore, 'workshops', workshop.id);
-        await updateDoc(workshopDocRef, workshopData);
+        // Usar updateDoc con los campos explícitos para asegurar que se actualicen
+        await updateDoc(workshopDocRef, {
+          ...workshopData,
+          restrictByGradeSection: restrictByGradeSection === true, // Forzar boolean
+          allowedSections: restrictByGradeSection && allowedSections.length > 0 ? allowedSections : [],
+          allowedGrades: [], // Siempre vacío
+        });
+        console.log('✅ Taller actualizado en Firestore');
         toast({ title: 'Taller actualizado', description: 'Los datos han sido guardados.' });
       } else {
         const collectionRef = collection(firestore, 'workshops');
         await addDoc(collectionRef, workshopData);
+        console.log('✅ Taller creado en Firestore');
         toast({ title: 'Taller Creado', description: 'El nuevo taller ha sido registrado.' });
       }
       onFinished();
