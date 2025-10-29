@@ -39,11 +39,43 @@ export const useUserProfile = (): UseUserResult => {
   useEffect(() => {
     console.log('useUserProfile - isAuthLoading:', isAuthLoading, 'authUser:', authUser?.uid, 'studentSession:', studentSession?.uid);
     
-    // Si hay una sesión de estudiante, usarla directamente
+    // Si hay una sesión de estudiante, cargar datos completos desde Firestore
     if (studentSession) {
-      console.log('useUserProfile - Using student session');
-      setProfile(studentSession as any);
-      setIsLoading(false);
+      console.log('useUserProfile - Using student session, loading full data from Firestore');
+      
+      const loadStudentData = async () => {
+        try {
+          // Cargar datos completos desde la colección users
+          const userDocRef = doc(firestore, 'users', studentSession.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log('✅ Datos cargados desde users para studentSession:', {
+              uid: studentSession.uid,
+              section: userData.section,
+              grade: userData.grade,
+              role: userData.role
+            });
+            
+            // Combinar datos de la sesión con datos de Firestore
+            setProfile({
+              ...studentSession,
+              ...userData,
+            } as any);
+          } else {
+            console.log('⚠️ No se encontró documento en users para:', studentSession.uid);
+            setProfile(studentSession as any);
+          }
+        } catch (error) {
+          console.error('❌ Error cargando datos de usuario:', error);
+          setProfile(studentSession as any);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      loadStudentData();
       return;
     }
     
