@@ -142,48 +142,64 @@ export default function TalleresPage() {
     if (workshop.restrictByGradeSection) {
       const userGrade = (user as any).grade;
       const userSection = (user as any).section;
+      const userRole = (user as any).role;
       
-      const hasGradeRestrictions = workshop.allowedGrades && workshop.allowedGrades.length > 0;
-      const hasSectionRestrictions = workshop.allowedSections && workshop.allowedSections.length > 0;
-      
-      // Si no hay ninguna restricción específica pero restrictByGradeSection está activo,
-      // permitir acceso (esto no debería pasar, pero por seguridad)
-      if (!hasGradeRestrictions && !hasSectionRestrictions) {
-        // No hay restricciones específicas, permitir inscripción
-        console.log('Restricciones activas pero sin grados/secciones específicas definidas');
+      // Si el usuario es admin o teacher, permitir inscripción sin restricciones
+      if (userRole === 'admin' || userRole === 'teacher') {
+        console.log('Usuario admin/teacher puede inscribirse sin restricciones');
       } else {
-        // Hay restricciones específicas, validar
-        let canEnrollByGrade = !hasGradeRestrictions; // Si no hay restricción de grado, puede inscribirse
-        let canEnrollBySection = !hasSectionRestrictions; // Si no hay restricción de sección, puede inscribirse
+        const hasGradeRestrictions = workshop.allowedGrades && workshop.allowedGrades.length > 0;
+        const hasSectionRestrictions = workshop.allowedSections && workshop.allowedSections.length > 0;
         
-        // Verificar restricción de grado si existe
-        if (hasGradeRestrictions) {
-          canEnrollByGrade = workshop.allowedGrades!.includes(userGrade || '');
-        }
-        
-        // Verificar restricción de sección si existe
-        if (hasSectionRestrictions) {
-          canEnrollBySection = workshop.allowedSections!.includes(userSection || '');
-        }
-        
-        // El usuario debe cumplir TODAS las restricciones que existan
-        if (!canEnrollByGrade || !canEnrollBySection) {
-          let restrictionMessages = [];
-          
-          if (hasGradeRestrictions && !canEnrollByGrade) {
-            restrictionMessages.push(`Grados permitidos: ${workshop.allowedGrades!.join(', ')}`);
+        // Si no hay ninguna restricción específica pero restrictByGradeSection está activo,
+        // permitir acceso (esto no debería pasar, pero por seguridad)
+        if (!hasGradeRestrictions && !hasSectionRestrictions) {
+          // No hay restricciones específicas, permitir inscripción
+          console.log('Restricciones activas pero sin grados/secciones específicas definidas');
+        } else {
+          // Verificar si el usuario tiene grado y sección asignados
+          if (!userGrade && !userSection) {
+            toast({
+              variant: 'destructive',
+              title: 'Perfil Incompleto',
+              description: 'Tu cuenta no tiene grado y sección asignados. Contacta al administrador para completar tu perfil.',
+            });
+            return;
           }
           
-          if (hasSectionRestrictions && !canEnrollBySection) {
-            restrictionMessages.push(`Secciones permitidas: ${workshop.allowedSections!.join(', ')}`);
+          // Hay restricciones específicas, validar
+          let canEnrollByGrade = !hasGradeRestrictions; // Si no hay restricción de grado, puede inscribirse
+          let canEnrollBySection = !hasSectionRestrictions; // Si no hay restricción de sección, puede inscribirse
+          
+          // Verificar restricción de grado si existe
+          if (hasGradeRestrictions) {
+            canEnrollByGrade = workshop.allowedGrades!.includes(userGrade || '');
           }
           
-          toast({
-            variant: 'destructive',
-            title: 'Restricciones de Acceso',
-            description: `Este taller tiene restricciones activas. ${restrictionMessages.join(' y ')}. Tu grado: ${userGrade || 'No asignado'}, tu sección: ${userSection || 'No asignada'}.`,
-          });
-          return;
+          // Verificar restricción de sección si existe
+          if (hasSectionRestrictions) {
+            canEnrollBySection = workshop.allowedSections!.includes(userSection || '');
+          }
+          
+          // El usuario debe cumplir TODAS las restricciones que existan
+          if (!canEnrollByGrade || !canEnrollBySection) {
+            let restrictionMessages = [];
+            
+            if (hasGradeRestrictions && !canEnrollByGrade) {
+              restrictionMessages.push(`Grados permitidos: ${workshop.allowedGrades!.join(', ')}`);
+            }
+            
+            if (hasSectionRestrictions && !canEnrollBySection) {
+              restrictionMessages.push(`Secciones permitidas: ${workshop.allowedSections!.join(', ')}`);
+            }
+            
+            toast({
+              variant: 'destructive',
+              title: 'Restricciones de Acceso',
+              description: `Este taller tiene restricciones activas. ${restrictionMessages.join(' y ')}. Tu grado: ${userGrade || 'No asignado'}, tu sección: ${userSection || 'No asignada'}.`,
+            });
+            return;
+          }
         }
       }
     }
