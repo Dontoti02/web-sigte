@@ -308,37 +308,23 @@ export default function WorkshopDetailPage() {
             </div>
           </div>
 
-          {workshop.restrictByGradeSection && (
+          {workshop.restrictByGradeSection && workshop.allowedSections && workshop.allowedSections.length > 0 && (
             <>
               <Separator />
               <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 mb-3">
                   <Shield className="h-5 w-5 text-blue-600" />
                   <span className="font-medium text-blue-800 dark:text-blue-200">
-                    Restricciones Activas
+                    Restricciones por Sección
                   </span>
                 </div>
-                <div className="space-y-2 text-sm">
-                  {workshop.allowedGrades && workshop.allowedGrades.length > 0 && (
-                    <div>
-                      <span className="font-medium text-blue-700 dark:text-blue-300">
-                        Grados permitidos:
-                      </span>
-                      <span className="ml-2 text-blue-600 dark:text-blue-400">
-                        {workshop.allowedGrades.join(', ')}
-                      </span>
-                    </div>
-                  )}
-                  {workshop.allowedSections && workshop.allowedSections.length > 0 && (
-                    <div>
-                      <span className="font-medium text-blue-700 dark:text-blue-300">
-                        Secciones permitidas:
-                      </span>
-                      <span className="ml-2 text-blue-600 dark:text-blue-400">
-                        {workshop.allowedSections.join(', ')}
-                      </span>
-                    </div>
-                  )}
+                <div className="text-sm">
+                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                    Secciones permitidas:
+                  </span>
+                  <span className="ml-2 text-blue-600 dark:text-blue-400">
+                    {workshop.allowedSections.join(', ')}
+                  </span>
                 </div>
               </div>
             </>

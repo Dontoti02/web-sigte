@@ -124,22 +124,9 @@ export default function TalleresPage() {
       return;
     }
 
-    // Validar restricciones (solo para estudiantes)
+    // Validar restricciones de sección (solo para estudiantes)
     if (role === 'student' && workshop.restrictByGradeSection) {
-      const userGrade = (user as any).grade;
       const userSection = (user as any).section;
-
-      // Verificar grado
-      if (workshop.allowedGrades && workshop.allowedGrades.length > 0) {
-        if (!workshop.allowedGrades.includes(userGrade || '')) {
-          toast({
-            variant: 'destructive',
-            title: 'Grado no permitido',
-            description: `Este taller está restringido a los grados: ${workshop.allowedGrades.join(', ')}`,
-          });
-          return;
-        }
-      }
 
       // Verificar sección
       if (workshop.allowedSections && workshop.allowedSections.length > 0) {
@@ -147,7 +134,7 @@ export default function TalleresPage() {
           toast({
             variant: 'destructive',
             title: 'Sección no permitida',
-            description: `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}`,
+            description: `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}. Tu sección: ${userSection || 'No asignada'}`,
           });
           return;
         }
@@ -355,23 +342,16 @@ export default function TalleresPage() {
                     </div>
                   </div>
 
-                  {/* Restricciones */}
-                  {workshop.restrictByGradeSection && (
+                  {/* Restricciones por Sección */}
+                  {workshop.restrictByGradeSection && workshop.allowedSections && workshop.allowedSections.length > 0 && (
                     <div className="p-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded text-xs">
                       <div className="flex items-center gap-1 font-medium text-blue-700 dark:text-blue-300 mb-1">
                         <Shield className="h-3 w-3" />
-                        Restricciones
+                        Secciones Permitidas
                       </div>
-                      {workshop.allowedGrades && workshop.allowedGrades.length > 0 && (
-                        <p className="text-blue-600 dark:text-blue-400">
-                          Grados: {workshop.allowedGrades.join(', ')}
-                        </p>
-                      )}
-                      {workshop.allowedSections && workshop.allowedSections.length > 0 && (
-                        <p className="text-blue-600 dark:text-blue-400">
-                          Secciones: {workshop.allowedSections.join(', ')}
-                        </p>
-                      )}
+                      <p className="text-blue-600 dark:text-blue-400">
+                        {workshop.allowedSections.join(', ')}
+                      </p>
                     </div>
                   )}
                 </CardContent>
