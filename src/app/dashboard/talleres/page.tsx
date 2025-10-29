@@ -95,28 +95,32 @@ export default function TalleresPage() {
         userSection: userSection
       });
       
-      // Si no tiene restricciones, mostrar
+      // Si no tiene restricciones, mostrar a todos
       if (!workshop.restrictByGradeSection) {
-        console.log('✅ Sin restricciones - mostrar');
+        console.log('✅ Sin restricciones - mostrar a todos');
         return true;
       }
       
-      // Si tiene restricciones, verificar sección
-      // Si hay restricciones de sección
-      if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-        // Si el usuario no tiene sección, mostrar el taller
-        if (!userSection) {
-          console.log('✅ Usuario sin sección - mostrar');
-          return true;
+      // SI TIENE RESTRICCIONES ACTIVAS
+      if (workshop.restrictByGradeSection === true) {
+        // Si hay secciones permitidas configuradas
+        if (workshop.allowedSections && workshop.allowedSections.length > 0) {
+          // Si el usuario NO tiene sección asignada → NO MOSTRAR (está restringido)
+          if (!userSection) {
+            console.log('❌ Taller restringido + Usuario sin sección → OCULTAR');
+            return false;
+          }
+          // Si tiene sección, verificar si está en la lista permitida
+          const canView = workshop.allowedSections.includes(userSection);
+          console.log(canView ? '✅ Sección permitida - mostrar' : '❌ Sección NO permitida - ocultar');
+          return canView;
         }
-        // Si tiene sección, solo mostrar si está en la lista permitida
-        const canView = workshop.allowedSections.includes(userSection);
-        console.log(canView ? '✅ Sección permitida - mostrar' : '❌ Sección NO permitida - ocultar');
-        return canView;
+        // Si restrictByGradeSection está activo pero no hay secciones configuradas → mostrar a todos
+        console.log('⚠️ Restricciones activas pero sin secciones configuradas - mostrar a todos');
+        return true;
       }
       
-      // Si no hay restricciones específicas, mostrar
-      console.log('✅ Sin restricciones específicas - mostrar');
+      // Por defecto, mostrar
       return true;
     }
     
@@ -166,17 +170,31 @@ export default function TalleresPage() {
     }
 
     // Validar restricciones de sección (solo para estudiantes)
-    if (role === 'student' && workshop.restrictByGradeSection) {
+    if (role === 'student' && workshop.restrictByGradeSection === true) {
       const userSection = (user as any).section;
 
-      // Solo validar si hay restricciones de sección Y el usuario tiene sección asignada
+      console.log('🔒 Validando restricciones de inscripción:', {
+        userSection,
+        allowedSections: workshop.allowedSections,
+        restrictByGradeSection: workshop.restrictByGradeSection
+      });
+
+      // Si hay restricciones de sección configuradas
       if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-        // Si el usuario no tiene sección asignada, permitir inscripción
+        // Si el usuario NO tiene sección asignada → BLOQUEAR
         if (!userSection) {
-          console.log('Usuario sin sección asignada - permitiendo inscripción');
-        } 
+          console.log('❌ BLOQUEADO: Usuario sin sección en taller restringido');
+          toast({
+            variant: 'destructive',
+            title: 'No puedes inscribirte',
+            description: 'Este taller está restringido por sección y tu cuenta no tiene una sección asignada.',
+          });
+          return;
+        }
+        
         // Si tiene sección, validar que esté en la lista permitida
-        else if (!workshop.allowedSections.includes(userSection)) {
+        if (!workshop.allowedSections.includes(userSection)) {
+          console.log('❌ BLOQUEADO: Sección no permitida');
           toast({
             variant: 'destructive',
             title: 'Sección no permitida',
@@ -184,6 +202,8 @@ export default function TalleresPage() {
           });
           return;
         }
+        
+        console.log('✅ Sección permitida - puede inscribirse');
       }
     }
 
