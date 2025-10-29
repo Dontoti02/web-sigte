@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -11,7 +12,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  PlusCircle, 
+  Users, 
+  Calendar, 
+  Clock, 
+  Edit, 
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Shield,
+  GraduationCap,
+  Loader2
+} from 'lucide-react';
 import { useRole } from '@/hooks/use-role';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
@@ -25,15 +39,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { WorkshopForm } from '@/components/dashboard/workshop-form';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -43,11 +48,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-
+} from '@/components/ui/alert-dialog';
+import { WorkshopForm } from '@/components/dashboard/workshop-form';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export default function TalleresPage() {
   const { role, user } = useRole();
@@ -57,488 +61,420 @@ export default function TalleresPage() {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedWorkshop, setSelectedWorkshop] = useState<Workshop | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Debug logs
-  console.log('TalleresPage - user:', user);
-  console.log('TalleresPage - role:', role);
-
+  // Cargar talleres
   const workshopsQuery = useMemoFirebase(() => collection(firestore, 'workshops'), [firestore]);
   const { data: workshops, isLoading } = useCollection<Workshop>(workshopsQuery);
 
-  const filteredWorkshops = useMemoFirebase(() => {
-    if (!workshops) return workshops;
-
-    // Para padres: mostrar solo talleres donde sus hijos están inscritos
-    if (role === 'parent' && (user as any)?.children) {
-      const childIds = (user as any).children.map((child: any) => child.id);
-      return workshops.filter(workshop => 
-        workshop.participants.some(participantId => childIds.includes(participantId))
-      );
+  // Filtrar talleres según el rol
+  const filteredWorkshops = workshops?.filter(workshop => {
+    // Admin y teacher ven todos los talleres
+    if (role === 'admin' || role === 'teacher') {
+      return true;
     }
-
-    // Para estudiantes: filtrar talleres según restricciones
-    if (role === 'student' && user) {
-      const userGrade = (user as any).grade;
-      const userSection = (user as any).section;
-
-      return workshops.filter(workshop => {
-        const isStudentEnrolled = user?.id ? workshop.participants.includes(user.id) : false;
-
-        // 1. Si el estudiante ya está inscrito, mostrar siempre el taller.
-        if (isStudentEnrolled) {
-          return true;
-        }
-
-        // 2. Si no está inscrito, aplicar la lógica de restricciones y disponibilidad.
-        // No mostrar talleres inactivos para inscribirse.
-        if (workshop.status !== 'active') {
-          return false;
-        }
-        
-        // Mostrar todos los talleres activos independientemente de las restricciones
-        // Las restricciones solo afectan la capacidad de inscribirse, no la visibilidad
-        return true;
-      });
+    
+    // Estudiantes solo ven talleres activos
+    if (role === 'student') {
+      return workshop.status === 'active';
     }
+    
+    return false;
+  }) || [];
 
-    // Para admin y teacher: mostrar todos los talleres
-    return workshops;
-  }, [role, user, workshops]);
-
+  // Función para inscribirse en un taller
   const handleEnroll = async (workshop: Workshop) => {
-    // DEBUG COMPLETO
-    console.log('🔍 INSCRIPCIÓN DEBUG COMPLETO:', {
-      user: user,
-      userId: user?.id,
-      userRole: (user as any)?.role,
-      userGrade: (user as any)?.grade,
-      userSection: (user as any)?.section,
-      workshopStatus: workshop.status,
-      workshopTitle: workshop.title,
-      restrictByGradeSection: workshop.restrictByGradeSection,
-      allowedGrades: workshop.allowedGrades,
-      allowedSections: workshop.allowedSections,
-      participants: workshop.participants
-    });
-
-    if (!user || !user.id) {
-      console.log('❌ No user or user.id');
+    if (!user?.id) {
       toast({
         variant: 'destructive',
-        title: 'Error de Usuario',
-        description: 'No se pudo identificar tu usuario. Inicia sesión nuevamente.',
+        title: 'Error',
+        description: 'Debes iniciar sesión para inscribirte.',
       });
       return;
     }
 
-    if (workshop.status !== 'active') {
-      console.log('❌ Workshop not active:', workshop.status);
+    // Verificar si ya está inscrito
+    if (workshop.participants.includes(user.id)) {
       toast({
         variant: 'destructive',
-        title: 'Taller Inactivo',
-        description: 'Este taller no está activo para inscripciones.',
+        title: 'Ya inscrito',
+        description: 'Ya estás inscrito en este taller.',
       });
       return;
     }
 
-    console.log('✅ Validaciones iniciales pasadas');
-
-    // Validar capacidad máxima
+    // Verificar capacidad
     if (workshop.participants.length >= workshop.maxParticipants) {
       toast({
         variant: 'destructive',
-        title: 'Taller Lleno',
-        description: `El taller "${workshop.title}" ha alcanzado su capacidad máxima de ${workshop.maxParticipants} estudiantes.`,
+        title: 'Taller lleno',
+        description: 'Este taller ha alcanzado su capacidad máxima.',
       });
       return;
     }
 
-    // Validar fecha límite de inscripción
+    // Verificar fecha límite
     const deadline = new Date(workshop.enrollmentDeadline);
-    const now = new Date();
-    if (now > deadline) {
+    if (new Date() > deadline) {
       toast({
         variant: 'destructive',
-        title: 'Inscripciones Cerradas',
-        description: `La fecha límite de inscripción para "${workshop.title}" ha vencido.`,
+        title: 'Inscripciones cerradas',
+        description: 'La fecha límite de inscripción ha pasado.',
       });
       return;
     }
 
-    // Validar restricciones de grado y sección - LÓGICA SIMPLE
-    if (workshop.restrictByGradeSection) {
+    // Validar restricciones (solo para estudiantes)
+    if (role === 'student' && workshop.restrictByGradeSection) {
       const userGrade = (user as any).grade;
       const userSection = (user as any).section;
-      const userRole = (user as any).role;
-      
-      // REGLA 1: Admin siempre puede inscribirse
-      if (userRole === 'admin') {
-        console.log('Admin puede inscribirse en cualquier taller');
-      }
-      // REGLA 2: Para estudiantes, verificar restricciones
-      else if (userRole === 'student') {
-        let canEnroll = true;
-        let errorMessage = '';
-        
-        // Si hay restricciones de grado, verificar
-        if (workshop.allowedGrades && workshop.allowedGrades.length > 0) {
-          if (!workshop.allowedGrades.includes(userGrade || '')) {
-            canEnroll = false;
-            errorMessage = `Este taller está restringido a los grados: ${workshop.allowedGrades.join(', ')}. Tu grado: ${userGrade || 'No asignado'}`;
-          }
-        }
-        
-        // Si hay restricciones de sección, verificar
-        if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-          if (!workshop.allowedSections.includes(userSection || '')) {
-            canEnroll = false;
-            errorMessage = `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}. Tu sección: ${userSection || 'No asignada'}`;
-          }
-        }
-        
-        // Si no puede inscribirse, mostrar error
-        if (!canEnroll) {
+
+      // Verificar grado
+      if (workshop.allowedGrades && workshop.allowedGrades.length > 0) {
+        if (!workshop.allowedGrades.includes(userGrade || '')) {
           toast({
             variant: 'destructive',
-            title: 'No puedes inscribirte',
-            description: errorMessage,
+            title: 'Grado no permitido',
+            description: `Este taller está restringido a los grados: ${workshop.allowedGrades.join(', ')}`,
           });
           return;
         }
       }
-      // REGLA 3: Otros roles (teacher, parent) pueden inscribirse
-      else {
-        console.log('Teacher/Parent puede inscribirse en cualquier taller');
+
+      // Verificar sección
+      if (workshop.allowedSections && workshop.allowedSections.length > 0) {
+        if (!workshop.allowedSections.includes(userSection || '')) {
+          toast({
+            variant: 'destructive',
+            title: 'Sección no permitida',
+            description: `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}`,
+          });
+          return;
+        }
       }
     }
-    
+
+    // Inscribir
     try {
-      console.log('Enrolling user:', user.id, 'in workshop:', workshop.id);
-      const workshopRef = doc(firestore, 'workshops', workshop.id);
-      await updateDoc(workshopRef, {
+      await updateDoc(doc(firestore, 'workshops', workshop.id), {
         participants: arrayUnion(user.id),
       });
-      
+
       toast({
-        title: 'Inscripción Exitosa',
-        description: `Te has inscrito en el taller "${workshop.title}".`,
+        title: 'Inscripción exitosa',
+        description: `Te has inscrito en "${workshop.title}"`,
       });
-    } catch (error: any) {
-      console.error('Error enrolling:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error de Inscripción',
-        description: error.message || 'No se pudo completar la inscripción.',
-      });
-    }
-  };
-  
-  const handleUnenroll = async (workshop: Workshop) => {
-    if (!user || !user.id) {
-      console.log('Cannot unenroll:', { user, userId: user?.id });
+    } catch (error) {
+      console.error('Error al inscribirse:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se puede cancelar la inscripción. Verifica tu sesión.',
-      });
-      return;
-    }
-    
-    try {
-      console.log('Unenrolling user:', user.id, 'from workshop:', workshop.id);
-      const workshopRef = doc(firestore, 'workshops', workshop.id);
-      await updateDoc(workshopRef, {
-        participants: arrayRemove(user.id)
-      });
-      
-      toast({
-        title: "Inscripción Cancelada",
-        description: `Has cancelado tu inscripción al taller "${workshop.title}".`,
-      });
-    } catch(error: any) {
-      console.error('Error unenrolling:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "No se pudo cancelar la inscripción."
+        description: 'No se pudo completar la inscripción.',
       });
     }
   };
-  
-  const handleDelete = async (workshopId: string) => {
-    try {
-        await deleteDoc(doc(firestore, "workshops", workshopId));
-        toast({
-            title: "Taller Eliminado",
-            description: "El taller ha sido eliminado exitosamente."
-        })
-    } catch(e) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No se pudo eliminar el taller."
-        });
-    }
-  }
-  
-  const handleToggleStatus = async (workshop: Workshop) => {
-    try {
-        const workshopRef = doc(firestore, 'workshops', workshop.id);
-        const newStatus = workshop.status === 'active' ? 'inactive' : 'active';
-        await updateDoc(workshopRef, { status: newStatus });
-        toast({
-            title: `Taller ${newStatus === 'active' ? 'Habilitado' : 'Deshabilitado'}`,
-            description: `El taller "${workshop.title}" ahora está ${newStatus === 'active' ? 'activo' : 'inactivo'}.`
-        });
-    } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No se pudo cambiar el estado del taller.'
-        });
-    }
-  }
 
+  // Función para desinscribirse
+  const handleUnenroll = async (workshop: Workshop) => {
+    if (!user?.id) return;
+
+    try {
+      await updateDoc(doc(firestore, 'workshops', workshop.id), {
+        participants: arrayRemove(user.id),
+      });
+
+      toast({
+        title: 'Desinscripción exitosa',
+        description: `Te has desinscrito de "${workshop.title}"`,
+      });
+    } catch (error) {
+      console.error('Error al desinscribirse:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo completar la desinscripción.',
+      });
+    }
+  };
+
+  // Función para eliminar taller (solo admin)
+  const handleDelete = async (workshopId: string) => {
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(firestore, 'workshops', workshopId));
+      toast({
+        title: 'Taller eliminado',
+        description: 'El taller ha sido eliminado correctamente.',
+      });
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo eliminar el taller.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Función para editar taller
   const handleEdit = (workshop: Workshop) => {
     setSelectedWorkshop(workshop);
     setIsFormOpen(true);
   };
-  
-  const handleAddNew = () => {
+
+  // Función para crear nuevo taller
+  const handleCreate = () => {
     setSelectedWorkshop(null);
     setIsFormOpen(true);
-  }
-  
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setSelectedWorkshop(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Talleres Disponibles</h1>
-        {role === 'admin' && (
-           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+    <div className="container mx-auto py-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Talleres</h1>
+          <p className="text-muted-foreground">
+            {role === 'admin' || role === 'teacher' 
+              ? 'Gestiona los talleres del colegio' 
+              : 'Inscríbete en los talleres disponibles'}
+          </p>
+        </div>
+        
+        {(role === 'admin' || role === 'teacher') && (
+          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
-               <Button onClick={handleAddNew} className="bg-accent hover:bg-accent/90">
+              <Button onClick={handleCreate}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Crear Taller
+                Nuevo Taller
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>{selectedWorkshop ? "Editar Taller" : "Crear Nuevo Taller"}</DialogTitle>
-                </DialogHeader>
-                <ScrollArea className="max-h-[80vh] pr-6">
-                  <WorkshopForm key={selectedWorkshop?.id || 'new'} workshop={selectedWorkshop} onFinished={handleCloseForm} />
-                </ScrollArea>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedWorkshop ? 'Editar Taller' : 'Crear Nuevo Taller'}
+                </DialogTitle>
+              </DialogHeader>
+              <WorkshopForm
+                workshop={selectedWorkshop}
+                onFinished={() => {
+                  setIsFormOpen(false);
+                  setSelectedWorkshop(null);
+                }}
+              />
             </DialogContent>
           </Dialog>
         )}
       </div>
 
-      {isLoading && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-             <Card key={i} className="flex flex-col">
-                <Skeleton className="h-48 w-full" />
-                <CardHeader><Skeleton className="h-5 w-3/4" /></CardHeader>
-                <CardContent className="flex-grow space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                </CardContent>
-                <CardFooter>
-                    <Skeleton className="h-10 w-full" />
-                </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Talleres Grid */}
+      {filteredWorkshops.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <GraduationCap className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium text-muted-foreground">
+              No hay talleres disponibles
+            </p>
+            {(role === 'admin' || role === 'teacher') && (
+              <Button onClick={handleCreate} className="mt-4">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Crear Primer Taller
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredWorkshops.map((workshop) => {
+            const isEnrolled = user?.id ? workshop.participants.includes(user.id) : false;
+            const isFull = workshop.participants.length >= workshop.maxParticipants;
+            const deadline = new Date(workshop.enrollmentDeadline);
+            const isDeadlinePassed = new Date() > deadline;
+            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active';
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {!isLoading && filteredWorkshops?.map((workshop) => {
-          const isStudentEnrolled = role === 'student' && user?.id ? workshop.participants.includes(user.id) : false;
-          const enrolledChildren = role === 'parent' && (user as any)?.children
-            ? (user as any).children.filter((child: any) => workshop.participants.includes(child.id))
-            : [];
-          const isActive = workshop.status === 'active';
-          const isFull = workshop.participants.length >= workshop.maxParticipants;
-          const deadline = new Date(workshop.enrollmentDeadline);
-          const now = new Date();
-          const isDeadlinePassed = now > deadline;
-          const canEnroll = isActive && !isFull && !isDeadlinePassed && user?.id && !isStudentEnrolled;
-          
-          return (
-            <Card key={workshop.id} className="flex flex-col overflow-hidden hover:shadow-xl transition-shadow duration-300">
-              <div className="relative h-48 w-full">
-                <Image
-                  src={workshop.imageUrl || 'https://picsum.photos/seed/1/600/400'}
-                  alt={workshop.title}
-                  layout="fill"
-                  objectFit="cover"
-                />
-                 <div className="absolute inset-0 bg-black/30" />
-                 <div className="absolute top-2 right-2">
-                    {role === 'admin' && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="secondary" size="icon" className="h-8 w-8 bg-black/50 hover:bg-black/70 border-none text-white">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(workshop)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleStatus(workshop)}>
-                                {isActive ? (
-                                    <><XCircle className="mr-2 h-4 w-4" /> Deshabilitar</>
-                                ) : (
-                                    <><CheckCircle className="mr-2 h-4 w-4" /> Habilitar</>
-                                )}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive px-2 py-1.5 font-normal relative flex cursor-default select-none items-center rounded-sm text-sm outline-none transition-colors focus:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
-                                         <Trash2 className="mr-2 h-4 w-4" />
-                                         Eliminar
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Se eliminará permanentemente el taller.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(workshop.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                    )}
-                 </div>
-                 <div className="absolute top-2 left-2">
-                    <Badge variant={isActive ? 'default' : 'destructive'} className={cn(isActive ? 'bg-green-600' : 'bg-red-600', 'text-white border-none')}>
-                        {isActive ? 'Activo' : 'Inactivo'}
-                    </Badge>
-                 </div>
-                 <div className="absolute bottom-0 p-4">
-                    <h2 className="text-2xl font-bold text-white font-headline">{workshop.title}</h2>
-                 </div>
-              </div>
-              <CardHeader>
-                <CardDescription className="line-clamp-2">{workshop.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow text-sm text-muted-foreground space-y-2">
-                 <p><strong>Docente:</strong> {workshop.teacherName}</p>
-                 <p><strong>Horario:</strong> {workshop.schedule}</p>
-                 <p><strong>Inscritos:</strong> {workshop.participants.length} / {workshop.maxParticipants} estudiantes</p>
-                 <p className={isDeadlinePassed ? 'text-red-600 font-semibold' : ''}>
-                   <strong>Fecha límite:</strong> {deadline.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                   {isDeadlinePassed && ' (Vencida)'}
-                 </p>
-                 {workshop.restrictByGradeSection && (
-                   <div className="space-y-1">
-                     <Badge variant="outline" className="w-full justify-center border-blue-500 text-blue-700">
-                       🎓 Restricciones Activas
-                     </Badge>
-                     {workshop.allowedGrades && workshop.allowedGrades.length > 0 && (
-                       <p className="text-xs">
-                         <strong>Grados:</strong> {workshop.allowedGrades.join(', ')}
-                       </p>
-                     )}
-                     {workshop.allowedSections && workshop.allowedSections.length > 0 && (
-                       <p className="text-xs">
-                         <strong>Secciones:</strong> {workshop.allowedSections.join(', ')}
-                       </p>
-                     )}
-                   </div>
-                 )}
-                 {isFull && <Badge variant="destructive" className="w-full justify-center">Cupo Lleno</Badge>}
-              </CardContent>
-              <CardFooter className="flex flex-col gap-2">
-                {role === 'student' && (
-                  <>
-                    {isStudentEnrolled ? (
-                      <>
-                        <Badge className="w-full justify-center bg-green-600 hover:bg-green-700">
-                          ✓ Inscrito
-                        </Badge>
-                        <Button className="w-full" variant="outline" onClick={() => handleUnenroll(workshop)}>
-                          Cancelar Inscripción
-                        </Button>
-                      </>
-                    ) : (
-                      <Button 
-                        className="w-full bg-primary hover:bg-primary/90" 
-                        onClick={() => handleEnroll(workshop)} 
-                        disabled={!canEnroll}
-                      >
-                        {!user?.id 
-                          ? 'Inicia sesión para inscribirte' 
-                          : isFull 
-                          ? 'Cupo Lleno' 
-                          : isDeadlinePassed 
-                          ? 'Inscripciones Cerradas'
-                          : !isActive 
-                          ? 'No disponible' 
-                          : 'Inscribirse'}
-                      </Button>
-                    )}
-                  </>
-                )}
-                {role === 'parent' && (
-                  <div className="w-full text-left">
-                    {enrolledChildren.length > 0 ? (
-                      <>
-                        <p className="text-sm font-semibold mb-2 text-foreground">Hijos Inscritos:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {enrolledChildren.map((child: { id: string; name: string }) => (
-                            <Badge key={child.id} variant="secondary">{child.name}</Badge>
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">Ninguno de tus hijos está inscrito en este taller</p>
-                    )}
+            return (
+              <Card key={workshop.id} className="flex flex-col">
+                {/* Imagen */}
+                {workshop.imageUrl && (
+                  <div className="relative h-48 w-full">
+                    <Image
+                      src={workshop.imageUrl}
+                      alt={workshop.title}
+                      fill
+                      className="object-cover rounded-t-lg"
+                    />
                   </div>
                 )}
-                {role === 'admin' && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => router.push(`/dashboard/talleres/${workshop.id}?role=${role}`)}
-                  >
-                    Gestionar Estudiantes
-                  </Button>
-                )}
-                {role === 'teacher' && workshop.teacherId === user?.id && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => router.push(`/dashboard/talleres/${workshop.id}?role=${role}`)}
-                  >
-                    Ver Estudiantes
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          );
-        })}
-      </div>
-       {!isLoading && filteredWorkshops?.length === 0 && (
-            <div className="text-center py-20 text-muted-foreground rounded-lg border-2 border-dashed">
-                <h3 className="text-lg font-semibold">No hay talleres disponibles</h3>
-                {role === 'admin' && <p className="mt-2 text-sm">Crea el primer taller para empezar.</p>}
-            </div>
-        )}
+
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="line-clamp-2">{workshop.title}</CardTitle>
+                    <Badge variant={workshop.status === 'active' ? 'default' : 'secondary'}>
+                      {workshop.status === 'active' ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </div>
+                  <CardDescription className="line-clamp-3">
+                    {workshop.description}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="flex-1 space-y-3">
+                  {/* Info */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span>
+                        {workshop.participants.length} / {workshop.maxParticipants} estudiantes
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <GraduationCap className="h-4 w-4" />
+                      <span>{workshop.teacherName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>{workshop.schedule}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        Hasta: {format(deadline, 'dd/MM/yyyy', { locale: es })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Restricciones */}
+                  {workshop.restrictByGradeSection && (
+                    <div className="p-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded text-xs">
+                      <div className="flex items-center gap-1 font-medium text-blue-700 dark:text-blue-300 mb-1">
+                        <Shield className="h-3 w-3" />
+                        Restricciones
+                      </div>
+                      {workshop.allowedGrades && workshop.allowedGrades.length > 0 && (
+                        <p className="text-blue-600 dark:text-blue-400">
+                          Grados: {workshop.allowedGrades.join(', ')}
+                        </p>
+                      )}
+                      {workshop.allowedSections && workshop.allowedSections.length > 0 && (
+                        <p className="text-blue-600 dark:text-blue-400">
+                          Secciones: {workshop.allowedSections.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+
+                <CardFooter className="flex gap-2">
+                  {/* Botones para estudiantes */}
+                  {role === 'student' && (
+                    <>
+                      {isEnrolled ? (
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => handleUnenroll(workshop)}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Desinscribirse
+                        </Button>
+                      ) : (
+                        <Button
+                          className="flex-1"
+                          onClick={() => handleEnroll(workshop)}
+                          disabled={!canEnroll}
+                        >
+                          {isFull ? (
+                            'Taller Lleno'
+                          ) : isDeadlinePassed ? (
+                            'Inscripciones Cerradas'
+                          ) : (
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Inscribirse
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push(`/dashboard/talleres/${workshop.id}`)}
+                      >
+                        Ver Detalles
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Botones para admin/teacher */}
+                  {(role === 'admin' || role === 'teacher') && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => router.push(`/dashboard/talleres/${workshop.id}`)}
+                      >
+                        Ver Detalles
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleEdit(workshop)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      {role === 'admin' && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="icon">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Eliminar Taller</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                ¿Estás seguro de eliminar "{workshop.title}"? Esta acción no se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(workshop.id)}
+                                disabled={isDeleting}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                {isDeleting ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Eliminando...
+                                  </>
+                                ) : (
+                                  'Eliminar'
+                                )}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </>
+                  )}
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

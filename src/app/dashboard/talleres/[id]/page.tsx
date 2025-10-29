@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, getDoc, updateDoc, arrayRemove, collection } from 'firebase/firestore';
 import { useRole } from '@/hooks/use-role';
@@ -38,58 +39,58 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   ArrowLeft, 
-  Trash2, 
   UserX, 
   Loader2, 
   Users, 
   Calendar, 
   Clock, 
-  MapPin,
   GraduationCap,
   Shield,
   Edit
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import Image from 'next/image';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+interface EnrolledStudent {
+  id: string;
+  name: string;
+  email: string;
+  grade: string;
+  section: string;
+  photoURL?: string;
+}
 
 export default function WorkshopDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { firestore } = useFirebase();
-  const { role, user } = useRole();
+  const { role } = useRole();
   const { toast } = useToast();
   
   const [workshop, setWorkshop] = useState<Workshop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [removingStudentId, setRemovingStudentId] = useState<string | null>(null);
-  const [enrolledStudentsData, setEnrolledStudentsData] = useState<any[]>([]);
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
-  const studentsQuery = useMemoFirebase(() => collection(firestore, 'students'), [firestore]);
-  const { data: allStudents } = useCollection<User>(studentsQuery);
+  // Cargar todos los usuarios
+  const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  const { data: allUsers } = useCollection<User>(usersQuery);
 
+  // Cargar taller
   useEffect(() => {
     const loadWorkshop = async () => {
-      if (!params.id) return;
+      if (!params.id || typeof params.id !== 'string') return;
       
       try {
-        const workshopRef = doc(firestore, 'workshops', params.id as string);
-        const workshopDoc = await getDoc(workshopRef);
-        
+        const workshopDoc = await getDoc(doc(firestore, 'workshops', params.id));
         if (workshopDoc.exists()) {
-          setWorkshop({ id: workshopDoc.id, ...workshopDoc.data() } as Workshop);
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Taller no encontrado.',
-          });
-          router.push('/dashboard/talleres');
+          const data = { id: workshopDoc.id, ...workshopDoc.data() } as Workshop;
+          setWorkshop(data);
         }
       } catch (error) {
-        console.error('Error loading workshop:', error);
+        console.error('Error cargando taller:', error);
         toast({
           variant: 'destructive',
           title: 'Error',
@@ -101,207 +102,279 @@ export default function WorkshopDetailPage() {
     };
 
     loadWorkshop();
-  }, [params.id, firestore, toast, router]);
+  }, [params.id, firestore, toast]);
 
-  const enrolledStudents = allStudents?.filter(student => 
-    workshop?.participants.includes(student.id)
-  ) || [];
-
-  // Cargar datos completos de estudiantes inscritos desde users y students
+  // Cargar estudiantes inscritos
   useEffect(() => {
-    const loadEnrolledStudentsData = async () => {
-      if (!workshop || !workshop.participants || workshop.participants.length === 0) {
-        setEnrolledStudentsData([]);
-        return;
-      }
-
+    const loadStudents = async () => {
+      if (!workshop || !allUsers) return;
+      
+      setLoadingStudents(true);
       try {
-        const studentsData = await Promise.all(
-          workshop.participants.map(async (studentId) => {
-            // Cargar desde students
-            const studentRef = doc(firestore, 'students', studentId);
-            const studentDoc = await getDoc(studentRef);
-            
-            // Cargar desde users (donde están grade y section)
-            const userRef = doc(firestore, 'users', studentId);
-            const userDoc = await getDoc(userRef);
-            
-            let combinedData: any = { id: studentId };
-            
-            if (studentDoc.exists()) {
-              combinedData = { ...combinedData, ...studentDoc.data() };
+        const students: EnrolledStudent[] = [];
+        
+        for (const participantId of workshop.participants) {
+          // Buscar en users
+          const userFromUsers = allUsers.find(u => u.id === participantId);
+          
+          if (userFromUsers) {
+            students.push({
+              id: participantId,
+              name: userFromUsers.displayName || 
+                    `${userFromUsers.lastName}, ${userFromUsers.firstName}` || 
+                    userFromUsers.name || 
+                    'Usuario',
+              email: userFromUsers.email || 'Sin email',
+              grade: userFromUsers.grade || 'No asignado',
+              section: userFromUsers.section || 'No asignada',
+              photoURL: userFromUsers.photoURL || '',
+            });
+          } else {
+            // Si no está en users, buscar en students
+            try {
+              const studentDoc = await getDoc(doc(firestore, 'students', participantId));
+              if (studentDoc.exists()) {
+                const studentData = studentDoc.data();
+                students.push({
+                  id: participantId,
+                  name: studentData.displayName || 
+                        `${studentData.lastName}, ${studentData.firstName}` || 
+                        'Estudiante',
+                  email: studentData.email || 'Sin email',
+                  grade: studentData.grade || 'No asignado',
+                  section: studentData.section || 'No asignada',
+                  photoURL: studentData.photoURL || '',
+                });
+              }
+            } catch (error) {
+              console.error(`Error cargando estudiante ${participantId}:`, error);
             }
-            
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              combinedData = { ...combinedData, ...userData };
-              console.log(`User ${studentId} data (grade/section):`, {
-                grade: userData.grade,
-                section: userData.section
-              });
-            }
-            
-            console.log(`Combined data for ${studentId}:`, combinedData);
-            return combinedData;
-          })
-        );
-
-        const validStudents = studentsData.filter(s => s !== null);
-        console.log('All enrolled students with grade/section:', validStudents);
-        setEnrolledStudentsData(validStudents);
+          }
+        }
+        
+        setEnrolledStudents(students);
       } catch (error) {
-        console.error('Error loading students data:', error);
+        console.error('Error cargando estudiantes:', error);
+      } finally {
+        setLoadingStudents(false);
       }
     };
 
-    loadEnrolledStudentsData();
-  }, [workshop, firestore]);
+    loadStudents();
+  }, [workshop, allUsers, firestore]);
 
-  const handleRemoveStudent = async (studentId: string) => {
+  // Remover estudiante
+  const handleRemoveStudent = async (studentId: string, studentName: string) => {
     if (!workshop) return;
-    
-    setRemovingStudentId(studentId);
+
     try {
-      const workshopRef = doc(firestore, 'workshops', workshop.id);
-      await updateDoc(workshopRef, {
-        participants: arrayRemove(studentId)
+      await updateDoc(doc(firestore, 'workshops', workshop.id), {
+        participants: arrayRemove(studentId),
       });
-      
-      // Actualizar el estado local
-      setWorkshop({
-        ...workshop,
-        participants: workshop.participants.filter(id => id !== studentId)
-      });
-      
+
+      // Actualizar estado local
+      setWorkshop(prev => prev ? {
+        ...prev,
+        participants: prev.participants.filter(id => id !== studentId)
+      } : null);
+
+      setEnrolledStudents(prev => prev.filter(s => s.id !== studentId));
+
       toast({
-        title: 'Estudiante Eliminado',
-        description: 'El estudiante ha sido removido del taller.',
+        title: 'Estudiante removido',
+        description: `${studentName} ha sido removido del taller.`,
       });
-    } catch (error: any) {
-      console.error('Error removing student:', error);
+    } catch (error) {
+      console.error('Error removiendo estudiante:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'No se pudo eliminar al estudiante.',
+        description: 'No se pudo remover al estudiante.',
       });
-    } finally {
-      setRemovingStudentId(null);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto space-y-6">
-        <Skeleton className="h-12 w-64" />
+      <div className="container mx-auto py-8 space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!workshop) {
+    return (
+      <div className="container mx-auto py-8">
         <Card>
           <CardHeader>
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-4 w-3/4" />
+            <CardTitle>Taller no encontrado</CardTitle>
+            <CardDescription>
+              El taller que buscas no existe o ha sido eliminado.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-64 w-full" />
+            <Button onClick={() => router.push('/dashboard/talleres')}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver a Talleres
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (!workshop) {
-    return null;
-  }
-
-  // Verificar permisos
-  const canManage = role === 'admin';
-  const canView = role === 'admin' || (role === 'teacher' && workshop.teacherId === user?.id);
-
-  if (!canView) {
-    router.push('/dashboard/talleres');
-    return null;
-  }
-
   const deadline = new Date(workshop.enrollmentDeadline);
-  const isDeadlinePassed = new Date() > deadline;
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="container mx-auto py-8 space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => router.push('/dashboard/talleres')}
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold">{workshop.title}</h1>
-          <p className="text-muted-foreground">Gestión de Estudiantes Inscritos</p>
+          <p className="text-muted-foreground">Detalles del taller</p>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Información del Taller</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {workshop.imageUrl && (
-              <div className="relative h-48 w-full rounded-lg overflow-hidden">
-                <Image
-                  src={workshop.imageUrl}
-                  alt={workshop.title}
-                  layout="fill"
-                  objectFit="cover"
-                />
-              </div>
-            )}
-            <div className="space-y-2 text-sm">
-              <div>
-                <strong>Estado:</strong>{' '}
-                <Badge variant={workshop.status === 'active' ? 'default' : 'destructive'}>
+      {/* Información del Taller */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <CardTitle>{workshop.title}</CardTitle>
+                <Badge variant={workshop.status === 'active' ? 'default' : 'secondary'}>
                   {workshop.status === 'active' ? 'Activo' : 'Inactivo'}
                 </Badge>
               </div>
-              <div>
-                <strong>Docente:</strong> {workshop.teacherName}
-              </div>
-              <div>
-                <strong>Horario:</strong> {workshop.schedule}
-              </div>
-              <div>
-                <strong>Inscritos:</strong> {workshop.participants.length} / {workshop.maxParticipants}
-              </div>
-              <div className={isDeadlinePassed ? 'text-red-600' : ''}>
-                <strong>Fecha límite:</strong>{' '}
-                {deadline.toLocaleDateString('es-ES', { 
-                  day: '2-digit', 
-                  month: '2-digit', 
-                  year: 'numeric' 
-                })}
-                {isDeadlinePassed && ' (Vencida)'}
-              </div>
-              {workshop.participants.length >= workshop.maxParticipants && (
-                <Badge variant="destructive" className="w-full justify-center">
-                  Cupo Lleno
-                </Badge>
-              )}
+              <CardDescription>{workshop.description}</CardDescription>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>
-              Estudiantes Inscritos ({enrolledStudentsData.length})
-            </CardTitle>
-            <CardDescription>
-              {canManage 
-                ? 'Lista de estudiantes inscritos con su grado y sección. Puedes eliminarlos del taller.' 
-                : 'Lista de estudiantes inscritos en tu taller con su grado y sección.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {enrolledStudentsData.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <UserX className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No hay estudiantes inscritos en este taller.</p>
+            {workshop.imageUrl && (
+              <div className="relative w-32 h-32 rounded-lg overflow-hidden ml-4">
+                <Image
+                  src={workshop.imageUrl}
+                  alt={workshop.title}
+                  fill
+                  className="object-cover"
+                />
               </div>
-            ) : (
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="text-sm">
+                <p className="font-medium">Participantes</p>
+                <p className="text-muted-foreground">
+                  {workshop.participants.length} / {workshop.maxParticipants}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              <div className="text-sm">
+                <p className="font-medium">Docente</p>
+                <p className="text-muted-foreground">{workshop.teacherName}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div className="text-sm">
+                <p className="font-medium">Horario</p>
+                <p className="text-muted-foreground">{workshop.schedule}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="text-sm">
+                <p className="font-medium">Fecha límite</p>
+                <p className="text-muted-foreground">
+                  {format(deadline, 'dd/MM/yyyy', { locale: es })}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {workshop.restrictByGradeSection && (
+            <>
+              <Separator />
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-blue-800 dark:text-blue-200">
+                    Restricciones Activas
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {workshop.allowedGrades && workshop.allowedGrades.length > 0 && (
+                    <div>
+                      <span className="font-medium text-blue-700 dark:text-blue-300">
+                        Grados permitidos:
+                      </span>
+                      <span className="ml-2 text-blue-600 dark:text-blue-400">
+                        {workshop.allowedGrades.join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {workshop.allowedSections && workshop.allowedSections.length > 0 && (
+                    <div>
+                      <span className="font-medium text-blue-700 dark:text-blue-300">
+                        Secciones permitidas:
+                      </span>
+                      <span className="ml-2 text-blue-600 dark:text-blue-400">
+                        {workshop.allowedSections.join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Estudiantes Inscritos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Estudiantes Inscritos ({enrolledStudents.length})
+          </CardTitle>
+          <CardDescription>
+            Lista de estudiantes registrados en este taller
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingStudents ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : enrolledStudents.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="text-lg font-medium text-muted-foreground">
+                No hay estudiantes inscritos
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Los estudiantes inscritos aparecerán aquí
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -309,81 +382,60 @@ export default function WorkshopDetailPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Grado</TableHead>
                     <TableHead>Sección</TableHead>
-                    {canManage && <TableHead className="text-right">Acciones</TableHead>}
+                    {(role === 'admin' || role === 'teacher') && (
+                      <TableHead className="text-right">Acciones</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {enrolledStudentsData.map((student) => {
-                    const studentData = student as any;
-                    
-                    // Los campos grade y section vienen de la colección users
-                    const grade = studentData.grade || 'Sin asignar';
-                    const section = studentData.section || 'Sin asignar';
-                    
-                    console.log(`Student ${studentData.firstName} ${studentData.lastName} - Grade: ${grade}, Section: ${section}`);
-                    
-                    return (
+                  {enrolledStudents.map((student) => (
                     <TableRow key={student.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            {student.photoURL && student.photoURL.trim() !== '' && (
+                          <Avatar className="h-10 w-10">
+                            {student.photoURL && (
                               <AvatarImage src={student.photoURL} alt={student.name} />
                             )}
                             <AvatarFallback>
-                              {student.firstName?.charAt(0)}{student.lastName?.charAt(0)}
+                              {student.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">
-                              {student.firstName} {student.lastName}
-                            </div>
-                          </div>
+                          <span className="font-medium">{student.name}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {student.email}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{grade}</Badge>
+                        <Badge variant="outline">{student.grade}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{section}</Badge>
+                        <Badge variant="secondary">{student.section}</Badge>
                       </TableCell>
-                      {canManage && (
+                      {(role === 'admin' || role === 'teacher') && (
                         <TableCell className="text-right">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={removingStudentId === student.id}
-                              >
-                                {removingStudentId === student.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                )}
+                              <Button variant="ghost" size="sm">
+                                <UserX className="h-4 w-4 mr-2" />
+                                Remover
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar estudiante?</AlertDialogTitle>
+                                <AlertDialogTitle>Remover Estudiante</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  ¿Estás seguro de que deseas eliminar a{' '}
-                                  <strong>{student.firstName} {student.lastName}</strong> del taller{' '}
-                                  <strong>{workshop.title}</strong>?
-                                  <br />
+                                  ¿Estás seguro de remover a <strong>{student.name}</strong> de este taller?
                                   Esta acción no se puede deshacer.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleRemoveStudent(student.id)}
+                                  onClick={() => handleRemoveStudent(student.id, student.name)}
                                   className="bg-destructive hover:bg-destructive/90"
                                 >
-                                  Eliminar
+                                  Remover
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -391,14 +443,13 @@ export default function WorkshopDetailPage() {
                         </TableCell>
                       )}
                     </TableRow>
-                    );
-                  })}
+                  ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
