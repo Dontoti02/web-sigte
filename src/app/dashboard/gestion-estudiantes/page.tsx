@@ -479,7 +479,7 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
                     <div className="space-y-3">
                         <h3 className="text-lg font-semibold">Vista Previa de Datos ({importedData.length} estudiantes)</h3>
                         <div className="border rounded-lg overflow-hidden">
-                            <div className="max-h-48 overflow-y-auto">
+                            <div className="max-h-80 overflow-y-auto">
                                 <Table>
                                 <TableHeader className="sticky top-0 bg-background">
                                     <TableRow>
@@ -490,7 +490,7 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {importedData.slice(0, 10).map((student, index) => (
+                                    {importedData.map((student, index) => (
                                     <TableRow key={index}>
                                         <TableCell className="font-medium text-sm py-2">{student.nombres}</TableCell>
                                         <TableCell className="text-sm py-2">{`${student.apellido_paterno || ''} ${student.apellido_materno || ''}`.trim()}</TableCell>
@@ -502,7 +502,7 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
                                 </Table>
                             </div>
                         </div>
-                        {importedData.length > 10 && <p className="text-xs text-center text-muted-foreground">Mostrando los primeros 10 de {importedData.length} registros.</p>}
+                        <p className="text-xs text-center text-muted-foreground">Mostrando todos los {importedData.length} registros. Haz scroll en la tabla para ver más datos.</p>
                     </div>
                 )}
                 
