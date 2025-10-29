@@ -128,13 +128,18 @@ export default function TalleresPage() {
     if (role === 'student' && workshop.restrictByGradeSection) {
       const userSection = (user as any).section;
 
-      // Verificar sección
+      // Solo validar si hay restricciones de sección Y el usuario tiene sección asignada
       if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-        if (!workshop.allowedSections.includes(userSection || '')) {
+        // Si el usuario no tiene sección asignada, permitir inscripción
+        if (!userSection) {
+          console.log('Usuario sin sección asignada - permitiendo inscripción');
+        } 
+        // Si tiene sección, validar que esté en la lista permitida
+        else if (!workshop.allowedSections.includes(userSection)) {
           toast({
             variant: 'destructive',
             title: 'Sección no permitida',
-            description: `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}. Tu sección: ${userSection || 'No asignada'}`,
+            description: `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}. Tu sección: ${userSection}`,
           });
           return;
         }
