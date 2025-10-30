@@ -34,7 +34,7 @@ const formSchema = z
     firstName: z.string().min(1, 'El nombre es requerido'),
     lastName: z.string().min(1, 'El apellido es requerido'),
     email: z.string().email('Email inválido'),
-    role: z.enum(['admin', 'teacher', 'parent']),
+    role: z.enum(['admin', 'teacher', 'parent', 'student']),
     password: z.string().optional(),
     confirmPassword: z.string().optional(),
     grade: z.string().optional(),
@@ -117,11 +117,17 @@ export function UserForm({ user, onFinished }: UserFormProps) {
                 lastName: values.lastName,
                 name: `${values.firstName} ${values.lastName}`,
                 role: values.role,
+                grade: values.grade || '',
+                section: values.section || '',
             };
 
-            // Clear student fields for non-student roles
-            dataToUpdate.grade = '';
-            dataToUpdate.section = '';
+            console.log('✅ Actualizando usuario con datos completos:', {
+                uid: user.id,
+                email: user.email,
+                role: values.role,
+                grade: values.grade,
+                section: values.section
+            });
 
             await updateDoc(userDocRef, dataToUpdate);
 
@@ -148,8 +154,17 @@ export function UserForm({ user, onFinished }: UserFormProps) {
                 email: values.email,
                 role: values.role,
                 photoURL: '',
+                grade: values.grade || '',
+                section: values.section || '',
             };
 
+            console.log('✅ Creando usuario con datos completos:', {
+                uid: newUser.uid,
+                email: values.email,
+                role: values.role,
+                grade: values.grade,
+                section: values.section
+            });
 
             await setDoc(doc(firestore, 'users', newUser.uid), userData);
             toast({ title: 'Usuario Creado', description: 'El nuevo usuario ha sido registrado.' });
@@ -224,6 +239,7 @@ export function UserForm({ user, onFinished }: UserFormProps) {
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="teacher">Docente</SelectItem>
                   <SelectItem value="parent">Padre/Madre</SelectItem>
+                  <SelectItem value="student">Estudiante</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -231,6 +247,74 @@ export function UserForm({ user, onFinished }: UserFormProps) {
           )}
         />
 
+        {/* Campos de Grado y Sección (para estudiantes) */}
+        {selectedRole === 'student' && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="grade"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Grado</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona grado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="PRIMERO">Primero</SelectItem>
+                      <SelectItem value="SEGUNDO">Segundo</SelectItem>
+                      <SelectItem value="TERCERO">Tercero</SelectItem>
+                      <SelectItem value="CUARTO">Cuarto</SelectItem>
+                      <SelectItem value="QUINTO">Quinto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="section"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sección</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona sección" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="1A">1A</SelectItem>
+                      <SelectItem value="1B">1B</SelectItem>
+                      <SelectItem value="1C">1C</SelectItem>
+                      <SelectItem value="1D">1D</SelectItem>
+                      <SelectItem value="2A">2A</SelectItem>
+                      <SelectItem value="2B">2B</SelectItem>
+                      <SelectItem value="2C">2C</SelectItem>
+                      <SelectItem value="2D">2D</SelectItem>
+                      <SelectItem value="3A">3A</SelectItem>
+                      <SelectItem value="3B">3B</SelectItem>
+                      <SelectItem value="3C">3C</SelectItem>
+                      <SelectItem value="3D">3D</SelectItem>
+                      <SelectItem value="4A">4A</SelectItem>
+                      <SelectItem value="4B">4B</SelectItem>
+                      <SelectItem value="4C">4C</SelectItem>
+                      <SelectItem value="4D">4D</SelectItem>
+                      <SelectItem value="5A">5A</SelectItem>
+                      <SelectItem value="5B">5B</SelectItem>
+                      <SelectItem value="5C">5C</SelectItem>
+                      <SelectItem value="5D">5D</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
 
         {!user && (
           <>
