@@ -370,13 +370,23 @@ function BulkUploadDialog({ onUploadComplete }: { onUploadComplete: () => void }
           id: uid,
           firstName: firstName,
           lastName: lastName,
+          apellidoPaterno: apellidoPaterno,
+          apellidoMaterno: apellidoMaterno,
+          name: name,
+          displayName: displayName,
           email: email,
+          grade: grade || '',
+          section: section || '',
           dateOfBirth: '',
           phone: '',
           address: '',
           parentId: '',
+          role: 'student',
+          photoURL: '',
           createdAt: new Date().toISOString(),
         });
+
+        console.log(`✅ Registrando estudiante: ${displayName} - Grado: ${grade}, Sección: ${section}`);
 
         await batch.commit();
         successCount++;
