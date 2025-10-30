@@ -106,52 +106,12 @@ export default function TalleresPage() {
       return workshop.teacherId === user?.id;
     }
     
-    // Estudiantes: filtrar por estado activo Y restricciones
+    // Estudiantes: solo filtrar por estado activo (SIN restricciones)
     if (role === 'student') {
-      // Debe ser activo
-      if (workshop.status !== 'active') {
-        return false;
-      }
-      
-      // Obtener sección del usuario desde la colección users
-      const userSection = (user as any)?.section || null;
-      
-      console.log('🔍 FILTRADO DETALLADO:', {
-        tallerTitulo: workshop.title,
-        userId: user?.id,
-        userSection: userSection,
-        restrictByGradeSection: workshop.restrictByGradeSection,
-        allowedSections: workshop.allowedSections
-      });
-      
-      // LÓGICA SIMPLIFICADA Y CORREGIDA:
-      
-      // 1. Si el taller NO tiene restricciones → MOSTRAR a todos
-      if (!workshop.restrictByGradeSection) {
-        console.log('✅ Taller SIN restricciones → MOSTRAR a todos');
-        return true;
-      }
-      
-      // 2. Si el taller TIENE restricciones pero NO hay secciones configuradas → MOSTRAR a todos
-      if (!workshop.allowedSections || workshop.allowedSections.length === 0) {
-        console.log('✅ Restricciones activas pero sin secciones → MOSTRAR a todos');
-        return true;
-      }
-      
-      // 3. Si el taller TIENE restricciones Y secciones configuradas:
-      // - Usuario SIN sección → NO MOSTRAR
-      if (!userSection || userSection === '') {
-        console.log('❌ Usuario sin sección + Taller restringido → OCULTAR');
-        return false;
-      }
-      
-      // - Usuario CON sección → Verificar si está permitida
-      const isAllowed = workshop.allowedSections.includes(userSection);
-      console.log(isAllowed 
-        ? `✅ Usuario sección "${userSection}" está en [${workshop.allowedSections.join(', ')}] → MOSTRAR`
-        : `❌ Usuario sección "${userSection}" NO está en [${workshop.allowedSections.join(', ')}] → OCULTAR`
-      );
-      return isAllowed;
+      // Solo verificar que el taller esté activo
+      const isActive = workshop.status === 'active';
+      console.log(`🔍 FILTRADO SIMPLE: ${workshop.title} - Activo: ${isActive}`);
+      return isActive;
     }
     
     return false;
@@ -199,48 +159,8 @@ export default function TalleresPage() {
       return;
     }
 
-    // Validar restricciones de sección (solo para estudiantes)
-    if (role === 'student' && workshop.restrictByGradeSection === true) {
-      // Obtener sección del usuario desde la colección users
-      const userSection = (user as any)?.section || null;
-
-      console.log('🔒 VALIDACIÓN INSCRIPCIÓN DETALLADA:', {
-        userId: user?.id,
-        userEmail: user?.email,
-        userSection: userSection,
-        tipoUserSection: typeof userSection,
-        allowedSections: workshop.allowedSections,
-        restrictByGradeSection: workshop.restrictByGradeSection,
-        comparacion: workshop.allowedSections?.includes(userSection)
-      });
-
-      // Si hay restricciones de sección configuradas
-      if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-        // Si el usuario NO tiene sección asignada → BLOQUEAR
-        if (!userSection) {
-          console.log('❌ BLOQUEADO: Usuario sin sección en taller restringido');
-          toast({
-            variant: 'destructive',
-            title: 'No puedes inscribirte',
-            description: 'Este taller está restringido por sección y tu cuenta no tiene una sección asignada.',
-          });
-          return;
-        }
-        
-        // Si tiene sección, validar que esté en la lista permitida
-        if (!workshop.allowedSections.includes(userSection)) {
-          console.log('❌ BLOQUEADO: Sección no permitida');
-          toast({
-            variant: 'destructive',
-            title: 'Sección no permitida',
-            description: `Este taller está restringido a las secciones: ${workshop.allowedSections.join(', ')}. Tu sección: ${userSection}`,
-          });
-          return;
-        }
-        
-        console.log('✅ Sección permitida - puede inscribirse');
-      }
-    }
+    // Sin validaciones de restricciones - todos pueden inscribirse
+    console.log('✅ INSCRIPCIÓN LIBRE: Todos los estudiantes pueden inscribirse');
 
     // Inscribir
     try {
@@ -391,28 +311,15 @@ export default function TalleresPage() {
             const deadline = new Date(workshop.enrollmentDeadline);
             const isDeadlinePassed = new Date() > deadline;
             
-            // Verificar restricciones de sección para estudiantes
-            let canEnrollBySection = true;
-            if (role === 'student' && workshop.restrictByGradeSection) {
-              const userSection = (user as any)?.section || null;
-              if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-                if (!userSection) {
-                  canEnrollBySection = false; // Usuario sin sección no puede inscribirse en taller restringido
-                } else {
-                  canEnrollBySection = workshop.allowedSections.includes(userSection);
-                }
-              }
-            }
+            // Sin restricciones - solo verificar condiciones básicas
+            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active';
             
-            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active' && canEnrollBySection;
-            
-            console.log('🎯 BOTÓN INSCRIPCIÓN:', {
+            console.log('🎯 BOTÓN INSCRIPCIÓN LIBRE:', {
               taller: workshop.title,
               isEnrolled,
               isFull,
               isDeadlinePassed,
               isActive: workshop.status === 'active',
-              canEnrollBySection,
               canEnroll: canEnroll
             });
 
@@ -504,8 +411,6 @@ export default function TalleresPage() {
                             'Taller Lleno'
                           ) : isDeadlinePassed ? (
                             'Inscripciones Cerradas'
-                          ) : !canEnrollBySection ? (
-                            'Sección No Permitida'
                           ) : (
                             <>
                               <CheckCircle className="mr-2 h-4 w-4" />
