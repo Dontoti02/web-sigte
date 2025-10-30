@@ -442,13 +442,18 @@ export default function TalleresPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => handleEdit(workshop)}
+                        className="border-blue-500 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       {role === 'admin' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="icon">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>

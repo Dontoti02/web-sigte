@@ -402,7 +402,11 @@ export default function WorkshopDetailPage() {
                         <TableCell className="text-right">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                              >
                                 <UserX className="h-4 w-4 mr-2" />
                                 Remover
                               </Button>
