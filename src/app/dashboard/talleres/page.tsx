@@ -119,42 +119,39 @@ export default function TalleresPage() {
       console.log('🔍 FILTRADO DETALLADO:', {
         tallerTitulo: workshop.title,
         userId: user?.id,
-        userCompleto: user,
         userSection: userSection,
-        tipoUserSection: typeof userSection,
         restrictByGradeSection: workshop.restrictByGradeSection,
-        tipoRestrictByGradeSection: typeof workshop.restrictByGradeSection,
-        allowedSections: workshop.allowedSections,
-        tipoAllowedSections: typeof workshop.allowedSections
+        allowedSections: workshop.allowedSections
       });
       
-      // Si no tiene restricciones, mostrar a todos
+      // LÓGICA SIMPLIFICADA Y CORREGIDA:
+      
+      // 1. Si el taller NO tiene restricciones → MOSTRAR a todos
       if (!workshop.restrictByGradeSection) {
-        console.log('✅ Sin restricciones - mostrar a todos');
+        console.log('✅ Taller SIN restricciones → MOSTRAR a todos');
         return true;
       }
       
-      // SI TIENE RESTRICCIONES ACTIVAS
-      if (workshop.restrictByGradeSection === true) {
-        // Si hay secciones permitidas configuradas
-        if (workshop.allowedSections && workshop.allowedSections.length > 0) {
-          // Si el usuario NO tiene sección asignada → NO MOSTRAR (está restringido)
-          if (!userSection) {
-            console.log('❌ Taller restringido + Usuario sin sección → OCULTAR');
-            return false;
-          }
-          // Si tiene sección, verificar si está en la lista permitida
-          const canView = workshop.allowedSections.includes(userSection);
-          console.log(canView ? '✅ Sección permitida - mostrar' : '❌ Sección NO permitida - ocultar');
-          return canView;
-        }
-        // Si restrictByGradeSection está activo pero no hay secciones configuradas → mostrar a todos
-        console.log('⚠️ Restricciones activas pero sin secciones configuradas - mostrar a todos');
+      // 2. Si el taller TIENE restricciones pero NO hay secciones configuradas → MOSTRAR a todos
+      if (!workshop.allowedSections || workshop.allowedSections.length === 0) {
+        console.log('✅ Restricciones activas pero sin secciones → MOSTRAR a todos');
         return true;
       }
       
-      // Por defecto, mostrar
-      return true;
+      // 3. Si el taller TIENE restricciones Y secciones configuradas:
+      // - Usuario SIN sección → NO MOSTRAR
+      if (!userSection || userSection === '') {
+        console.log('❌ Usuario sin sección + Taller restringido → OCULTAR');
+        return false;
+      }
+      
+      // - Usuario CON sección → Verificar si está permitida
+      const isAllowed = workshop.allowedSections.includes(userSection);
+      console.log(isAllowed 
+        ? `✅ Usuario sección "${userSection}" está en [${workshop.allowedSections.join(', ')}] → MOSTRAR`
+        : `❌ Usuario sección "${userSection}" NO está en [${workshop.allowedSections.join(', ')}] → OCULTAR`
+      );
+      return isAllowed;
     }
     
     return false;
