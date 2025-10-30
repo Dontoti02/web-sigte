@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,33 @@ export default function TalleresPage() {
   // Cargar talleres
   const workshopsQuery = useMemoFirebase(() => collection(firestore, 'workshops'), [firestore]);
   const { data: workshops, isLoading } = useCollection<Workshop>(workshopsQuery);
+
+  // Log de todos los talleres cargados
+  useEffect(() => {
+    if (workshops && workshops.length > 0) {
+      console.log('📚 TALLERES CARGADOS DESDE FIRESTORE:', workshops.map(w => ({
+        id: w.id,
+        title: w.title,
+        restrictByGradeSection: w.restrictByGradeSection,
+        allowedSections: w.allowedSections,
+        allowedGrades: w.allowedGrades
+      })));
+    }
+  }, [workshops]);
+
+  // Log del usuario actual
+  useEffect(() => {
+    if (user) {
+      console.log('👤 USUARIO ACTUAL:', {
+        id: user.id,
+        email: user.email,
+        role: role,
+        section: (user as any)?.section,
+        grade: (user as any)?.grade,
+        userCompleto: user
+      });
+    }
+  }, [user, role]);
 
   // Filtrar talleres según el rol
   const filteredWorkshops = workshops?.filter(workshop => {
