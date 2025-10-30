@@ -390,7 +390,31 @@ export default function TalleresPage() {
             const isFull = workshop.participants.length >= workshop.maxParticipants;
             const deadline = new Date(workshop.enrollmentDeadline);
             const isDeadlinePassed = new Date() > deadline;
-            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active';
+            
+            // Verificar restricciones de sección para estudiantes
+            let canEnrollBySection = true;
+            if (role === 'student' && workshop.restrictByGradeSection) {
+              const userSection = (user as any)?.section || null;
+              if (workshop.allowedSections && workshop.allowedSections.length > 0) {
+                if (!userSection) {
+                  canEnrollBySection = false; // Usuario sin sección no puede inscribirse en taller restringido
+                } else {
+                  canEnrollBySection = workshop.allowedSections.includes(userSection);
+                }
+              }
+            }
+            
+            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active' && canEnrollBySection;
+            
+            console.log('🎯 BOTÓN INSCRIPCIÓN:', {
+              taller: workshop.title,
+              isEnrolled,
+              isFull,
+              isDeadlinePassed,
+              isActive: workshop.status === 'active',
+              canEnrollBySection,
+              canEnroll: canEnroll
+            });
 
             return (
               <Card key={workshop.id} className="flex flex-col">
@@ -480,6 +504,8 @@ export default function TalleresPage() {
                             'Taller Lleno'
                           ) : isDeadlinePassed ? (
                             'Inscripciones Cerradas'
+                          ) : !canEnrollBySection ? (
+                            'Sección No Permitida'
                           ) : (
                             <>
                               <CheckCircle className="mr-2 h-4 w-4" />
