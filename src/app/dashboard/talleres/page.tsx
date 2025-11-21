@@ -13,12 +13,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  PlusCircle, 
-  Users, 
-  Calendar, 
-  Clock, 
-  Edit, 
+import {
+  PlusCircle,
+  Users,
+  Calendar,
+  Clock,
+  Edit,
   Trash2,
   CheckCircle,
   XCircle,
@@ -58,7 +58,7 @@ export default function TalleresPage() {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
-  
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedWorkshop, setSelectedWorkshop] = useState<Workshop | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -100,12 +100,12 @@ export default function TalleresPage() {
     if (role === 'admin') {
       return true;
     }
-    
+
     // Teacher solo ve los talleres donde está asignado como docente
     if (role === 'teacher') {
       return workshop.teacherId === user?.id;
     }
-    
+
     // Estudiantes: solo filtrar por estado activo (SIN restricciones)
     if (role === 'student') {
       // Solo verificar que el taller esté activo
@@ -113,7 +113,7 @@ export default function TalleresPage() {
       console.log(`🔍 FILTRADO SIMPLE: ${workshop.title} - Activo: ${isActive}`);
       return isActive;
     }
-    
+
     return false;
   }) || [];
 
@@ -150,6 +150,17 @@ export default function TalleresPage() {
 
     // Verificar fecha límite
     const deadline = new Date(workshop.enrollmentDeadline);
+    const isValidDeadline = !isNaN(deadline.getTime());
+
+    if (!isValidDeadline) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Este taller tiene una fecha de inscripción inválida.',
+      });
+      return;
+    }
+
     if (new Date() > deadline) {
       toast({
         variant: 'destructive',
@@ -255,12 +266,12 @@ export default function TalleresPage() {
         <div>
           <h1 className="text-3xl font-bold">Talleres</h1>
           <p className="text-muted-foreground">
-            {role === 'admin' || role === 'teacher' 
-              ? 'Gestiona los talleres del colegio' 
+            {role === 'admin' || role === 'teacher'
+              ? 'Gestiona los talleres del colegio'
               : 'Inscríbete en los talleres disponibles'}
           </p>
         </div>
-        
+
         {(role === 'admin' || role === 'teacher') && (
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
@@ -308,12 +319,15 @@ export default function TalleresPage() {
           {filteredWorkshops.map((workshop) => {
             const isEnrolled = user?.id ? workshop.participants.includes(user.id) : false;
             const isFull = workshop.participants.length >= workshop.maxParticipants;
+
+            // Validar fecha de inscripción
             const deadline = new Date(workshop.enrollmentDeadline);
-            const isDeadlinePassed = new Date() > deadline;
-            
+            const isValidDeadline = !isNaN(deadline.getTime());
+            const isDeadlinePassed = isValidDeadline ? new Date() > deadline : false;
+
             // Sin restricciones - solo verificar condiciones básicas
-            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active';
-            
+            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active' && isValidDeadline;
+
             console.log('🎯 BOTÓN INSCRIPCIÓN LIBRE:', {
               taller: workshop.title,
               isEnrolled,
@@ -369,7 +383,7 @@ export default function TalleresPage() {
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       <span>
-                        Hasta: {format(deadline, 'dd/MM/yyyy', { locale: es })}
+                        Hasta: {isValidDeadline ? format(deadline, 'dd/MM/yyyy', { locale: es }) : 'Fecha no disponible'}
                       </span>
                     </div>
                   </div>
@@ -449,8 +463,8 @@ export default function TalleresPage() {
                       {role === 'admin' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="icon"
                               className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600"
                             >

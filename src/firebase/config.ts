@@ -1,10 +1,9 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyDvlVSCydMbkCv-68QSENkqUhaM4lzMxr4",
-  authDomain: "sigte-ebf49.firebaseapp.com",
-  projectId: "sigte-ebf49",
-  storageBucket: "sigte-ebf49.appspot.com",
-  messagingSenderId: "258016671043",
-  appId: "1:258016671043:web:d915238c764a92affeebf6"
+  apiKey: "AIzaSyAP48OZcF9rWoIg5EaLKoD3S63NKBxv3Og",
+  authDomain: "sigte-now.firebaseapp.com",
+  projectId: "sigte-now",
+  storageBucket: "sigte-now.firebasestorage.app",
+  messagingSenderId: "372845049864",
+  appId: "1:372845049864:web:3f7d41b7e7cbd23453b9bd"
 };
 
-    
