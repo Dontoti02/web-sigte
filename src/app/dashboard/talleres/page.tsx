@@ -323,18 +323,20 @@ export default function TalleresPage() {
             // Validar fecha de inscripción
             const deadline = new Date(workshop.enrollmentDeadline);
             const isValidDeadline = !isNaN(deadline.getTime());
+            // Si la fecha es inválida, no se considera como pasada (permite inscripción)
             const isDeadlinePassed = isValidDeadline ? new Date() > deadline : false;
 
-            // Sin restricciones - solo verificar condiciones básicas
-            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active' && isValidDeadline;
+            // Permitir inscripción si: no está inscrito, no está lleno, la fecha no ha pasado (o es inválida), y está activo
+            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active';
 
-            console.log('🎯 BOTÓN INSCRIPCIÓN LIBRE:', {
+            console.log('🎯 VALIDACIÓN DE INSCRIPCIÓN:', {
               taller: workshop.title,
               isEnrolled,
               isFull,
+              isValidDeadline,
               isDeadlinePassed,
               isActive: workshop.status === 'active',
-              canEnroll: canEnroll
+              canEnroll
             });
 
             return (

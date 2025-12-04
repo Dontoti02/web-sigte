@@ -13,11 +13,11 @@ import Image from 'next/image';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
 const daysOfWeek = [
-    { id: 'Lunes', label: 'Lunes' },
-    { id: 'Martes', label: 'Martes' },
-    { id: 'Miércoles', label: 'Miércoles' },
-    { id: 'Jueves', label: 'Jueves' },
-    { id: 'Viernes', label: 'Viernes' },
+  { id: 'Lunes', label: 'Lunes' },
+  { id: 'Martes', label: 'Martes' },
+  { id: 'Miércoles', label: 'Miércoles' },
+  { id: 'Jueves', label: 'Jueves' },
+  { id: 'Viernes', label: 'Viernes' },
 ];
 
 interface WorkshopFormProps {
@@ -28,7 +28,7 @@ interface WorkshopFormProps {
 export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  
+
   // Estados del formulario
   const [title, setTitle] = useState(workshop?.title || '');
   const [description, setDescription] = useState(workshop?.description || '');
@@ -42,13 +42,13 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
   const [enrollmentDeadline, setEnrollmentDeadline] = useState(
     workshop?.enrollmentDeadline ? new Date(workshop.enrollmentDeadline).toISOString().split('T')[0] : ''
   );
-  
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(workshop?.imageUrl || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Estados para restricciones (solo secciones)
   const [restrictByGradeSection, setRestrictByGradeSection] = useState(workshop?.restrictByGradeSection || false);
   const [allowedSections, setAllowedSections] = useState<string[]>(workshop?.allowedSections || []);
@@ -56,7 +56,7 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
   const teachersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users } = useCollection<User>(teachersQuery);
   const teachers = users?.filter(u => u.role === 'teacher');
-  
+
   // Cargar datos del taller cuando se edita
   useEffect(() => {
     if (workshop) {
@@ -66,19 +66,19 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
         restrictByGradeSection: workshop.restrictByGradeSection,
         allowedSections: workshop.allowedSections
       });
-      
+
       setRestrictByGradeSection(workshop.restrictByGradeSection || false);
       setAllowedSections(workshop.allowedSections || []);
     }
   }, [workshop]);
-  
+
   // Obtener grados y secciones únicos de los estudiantes
   const availableGrades = ['PRIMERO', 'SEGUNDO', 'TERCERO', 'CUARTO', 'QUINTO'];
   const availableSections = [
     '1A', '1B', '1C', '1D', '2A', '2B', '2C', '2D', '3A', '3B', '3C', '3D',
     '4A', '4B', '4C', '4D', '5A', '5B', '5C', '5D'
   ];
-  
+
   const timeSlots = Array.from({ length: 20 }, (_, i) => {
     const hour = Math.floor(i / 2) + 8;
     const minute = i % 2 === 0 ? '00' : '30';
@@ -119,7 +119,7 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validaciones
     if (!title || !description || !teacherId || selectedDays.length === 0 || !startTime || !endTime || !enrollmentDeadline) {
       toast({
@@ -158,10 +158,10 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
           setIsUploadingImage(false);
         } catch (error: any) {
           setIsUploadingImage(false);
-          toast({ 
-            variant: 'destructive', 
-            title: 'Error al subir imagen', 
-            description: error.message || 'No se pudo subir la imagen.' 
+          toast({
+            variant: 'destructive',
+            title: 'Error al subir imagen',
+            description: error.message || 'No se pudo subir la imagen.'
           });
           return;
         }
@@ -180,25 +180,32 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
         status: workshop?.status || 'active',
         maxParticipants,
         enrollmentDeadline: new Date(enrollmentDeadline).toISOString(),
-        restrictByGradeSection: restrictByGradeSection, // Asegurar que se guarde correctamente
-        allowedGrades: [], // Ya no se usa, siempre vacío
-        allowedSections: restrictByGradeSection && allowedSections.length > 0 ? allowedSections : [],
+        restrictByGradeSection: restrictByGradeSection,
+        allowedGrades: [],
+        allowedSections: restrictByGradeSection ? allowedSections : [],
       };
 
-      console.log('💾 Guardando taller con restricciones:', {
+      console.log('💾 Guardando taller con datos:', {
         restrictByGradeSection,
-        allowedSections,
-        workshopData
+        allowedSections: workshopData.allowedSections,
+        fullData: workshopData
       });
 
       if (workshop) {
         const workshopDocRef = doc(firestore, 'workshops', workshop.id);
-        // Usar updateDoc con los campos explícitos para asegurar que se actualicen
         await updateDoc(workshopDocRef, {
-          ...workshopData,
-          restrictByGradeSection: restrictByGradeSection === true, // Forzar boolean
-          allowedSections: restrictByGradeSection && allowedSections.length > 0 ? allowedSections : [],
-          allowedGrades: [], // Siempre vacío
+          title: workshopData.title,
+          description: workshopData.description,
+          teacherId: workshopData.teacherId,
+          teacherName: workshopData.teacherName,
+          schedule: workshopData.schedule,
+          imageUrl: workshopData.imageUrl,
+          status: workshopData.status,
+          maxParticipants: workshopData.maxParticipants,
+          enrollmentDeadline: workshopData.enrollmentDeadline,
+          restrictByGradeSection: restrictByGradeSection,
+          allowedGrades: [],
+          allowedSections: restrictByGradeSection ? allowedSections : [],
         });
         console.log('✅ Taller actualizado en Firestore');
         toast({ title: 'Taller actualizado', description: 'Los datos han sido guardados.' });
@@ -209,7 +216,7 @@ export function WorkshopForm({ workshop, onFinished }: WorkshopFormProps) {
         toast({ title: 'Taller Creado', description: 'El nuevo taller ha sido registrado.' });
       }
       onFinished();
-    } catch(error: any) {
+    } catch (error: any) {
       toast({ variant: "destructive", title: 'Error', description: error.message || "Ocurrió un error." });
     } finally {
       setIsSubmitting(false);
