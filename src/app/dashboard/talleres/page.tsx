@@ -170,8 +170,35 @@ export default function TalleresPage() {
       return;
     }
 
-    // Sin validaciones de restricciones - todos pueden inscribirse
-    console.log('✅ INSCRIPCIÓN LIBRE: Todos los estudiantes pueden inscribirse');
+    // Verificar restricciones por sección
+    if (workshop.restrictByGradeSection && workshop.allowedSections && workshop.allowedSections.length > 0) {
+      const userSection = (user as any)?.section;
+
+      if (!userSection) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No tienes una sección asignada. Contacta al administrador.',
+        });
+        return;
+      }
+
+      if (!workshop.allowedSections.includes(userSection)) {
+        toast({
+          variant: 'destructive',
+          title: 'No permitido',
+          description: `Este taller solo está disponible para las secciones: ${workshop.allowedSections.join(', ')}. Tu sección es ${userSection}.`,
+        });
+        return;
+      }
+
+      console.log('✅ RESTRICCIÓN VALIDADA: Estudiante pertenece a sección permitida', {
+        userSection,
+        allowedSections: workshop.allowedSections
+      });
+    } else {
+      console.log('✅ INSCRIPCIÓN LIBRE: No hay restricciones de sección');
+    }
 
     // Inscribir
     try {
@@ -326,8 +353,13 @@ export default function TalleresPage() {
             // Si la fecha es inválida, no se considera como pasada (permite inscripción)
             const isDeadlinePassed = isValidDeadline ? new Date() > deadline : false;
 
-            // Permitir inscripción si: no está inscrito, no está lleno, la fecha no ha pasado (o es inválida), y está activo
-            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active';
+            // Verificar restricciones por sección
+            const userSection = (user as any)?.section;
+            const hasRestrictions = workshop.restrictByGradeSection && workshop.allowedSections && workshop.allowedSections.length > 0;
+            const meetsRestrictions = !hasRestrictions || (userSection && workshop.allowedSections?.includes(userSection));
+
+            // Permitir inscripción si: no está inscrito, no está lleno, la fecha no ha pasado (o es inválida), está activo, y cumple restricciones
+            const canEnroll = !isEnrolled && !isFull && !isDeadlinePassed && workshop.status === 'active' && meetsRestrictions;
 
             console.log('🎯 VALIDACIÓN DE INSCRIPCIÓN:', {
               taller: workshop.title,
@@ -336,6 +368,10 @@ export default function TalleresPage() {
               isValidDeadline,
               isDeadlinePassed,
               isActive: workshop.status === 'active',
+              userSection,
+              hasRestrictions,
+              allowedSections: workshop.allowedSections,
+              meetsRestrictions,
               canEnroll
             });
 
@@ -427,6 +463,8 @@ export default function TalleresPage() {
                             'Taller Lleno'
                           ) : isDeadlinePassed ? (
                             'Inscripciones Cerradas'
+                          ) : !meetsRestrictions ? (
+                            'No disponible para tu sección'
                           ) : (
                             <>
                               <CheckCircle className="mr-2 h-4 w-4" />
