@@ -10,6 +10,7 @@ Sistema web completo para la gestión de talleres escolares, desarrollado con Ne
 - [Configuración de Firebase](#configuración-de-firebase)
 - [Configuración de Cloudinary](#configuración-de-cloudinary)
 - [Estructura del Proyecto](#estructura-del-proyecto)
+- [Modelo de Base de Datos](#-modelo-de-base-de-datos)
 - [Despliegue](#despliegue)
 - [Solución de Problemas](#solución-de-problemas)
 
@@ -371,6 +372,20 @@ web-sigte/
 ├── tailwind.config.ts       # Configuración de Tailwind
 └── tsconfig.json            # Configuración de TypeScript
 ```
+
+## 🗄️ Modelo de Base de Datos
+
+El sistema utiliza Firebase Firestore como base de datos NoSQL. Para ver el diagrama completo del modelo de datos, consulta la [documentación de base de datos](docs/DATABASE.md).
+
+### Colecciones Principales
+
+- **users**: Usuarios del sistema (admin, teacher, student, parent)
+- **workshops**: Talleres disponibles con restricciones por sección
+- **attendances**: Registros de asistencia por taller y fecha
+- **messages**: Mensajería entre usuarios
+- **notifications**: Notificaciones del sistema
+
+📊 **[Ver diagrama completo y documentación detallada →](docs/DATABASE.md)**
 
 ## 🌐 Despliegue
 
