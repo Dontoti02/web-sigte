@@ -1,18 +1,18 @@
-@startuml SIGTE Database Model
+@startuml Modelo de Base de Datos SIGTE
 
-!define COLLECTION #E1F5FE
-!define KEY #FFE082
+!define COLECCION #E1F5FE
+!define CLAVE #FFE082
 
 ' Estilo
 skinparam class {
-    BackgroundColor COLLECTION
+    BackgroundColor COLECCION
     BorderColor #01579B
     ArrowColor #01579B
 }
 
-' Colección Users
-class users <<Collection>> {
-    **id**: string {KEY}
+' Colección Usuarios
+class usuarios <<Colección>> {
+    **id**: string {CLAVE}
     --
     email: string
     firstName: string
@@ -21,14 +21,14 @@ class users <<Collection>> {
     displayName: string
     role: enum (admin|teacher|student|parent)
     photoURL: string
-    grade: string (solo students)
-    section: string (solo students)
-    children: array (solo parents)
+    grade: string (solo estudiantes)
+    section: string (solo estudiantes)
+    children: array (solo padres)
 }
 
-' Colección Workshops
-class workshops <<Collection>> {
-    **id**: string {KEY}
+' Colección Talleres
+class talleres <<Colección>> {
+    **id**: string {CLAVE}
     --
     title: string
     description: string
@@ -45,19 +45,19 @@ class workshops <<Collection>> {
     allowedGrades: array<string>
 }
 
-' Colección Attendances
-class attendances <<Collection>> {
-    **id**: string {KEY}
+' Colección Asistencias
+class asistencias <<Colección>> {
+    **id**: string {CLAVE}
     --
-    date: string (YYYY-MM-DD)
+    date: string (AAAA-MM-DD)
     workshopId: string
     grade: string
     section: string
-    records: array<AttendanceRecord>
+    records: array<RegistroAsistencia>
 }
 
-' Subcampo AttendanceRecord
-class AttendanceRecord <<Object>> {
+' Subcampo RegistroAsistencia
+class RegistroAsistencia <<Objeto>> {
     studentId: string
     studentName: string
     status: enum (present|late|justified|absent|none)
@@ -65,9 +65,9 @@ class AttendanceRecord <<Object>> {
     registeredTime: string
 }
 
-' Colección Messages
-class messages <<Collection>> {
-    **id**: string {KEY}
+' Colección Mensajes
+class mensajes <<Colección>> {
+    **id**: string {CLAVE}
     --
     senderId: string
     senderName: string
@@ -77,9 +77,9 @@ class messages <<Collection>> {
     isRead: boolean
 }
 
-' Colección Notifications
-class notifications <<Collection>> {
-    **id**: string {KEY}
+' Colección Notificaciones
+class notificaciones <<Colección>> {
+    **id**: string {CLAVE}
     --
     userId: string
     title: string
@@ -89,16 +89,16 @@ class notifications <<Collection>> {
 }
 
 ' Relaciones
-users "1" -- "0..*" workshops : teacherId
-users "0..*" -- "0..*" workshops : participants
-workshops "1" -- "0..*" attendances : workshopId
-attendances "1" *-- "0..*" AttendanceRecord : records
-users "1" -- "0..*" messages : senderId
-users "1" -- "0..*" messages : recipientId
-users "1" -- "0..*" notifications : userId
+usuarios "1" -- "0..*" talleres : teacherId
+usuarios "0..*" -- "0..*" talleres : participants
+talleres "1" -- "0..*" asistencias : workshopId
+asistencias "1" *-- "0..*" RegistroAsistencia : records
+usuarios "1" -- "0..*" mensajes : senderId
+usuarios "1" -- "0..*" mensajes : recipientId
+usuarios "1" -- "0..*" notificaciones : userId
 
 ' Notas explicativas
-note right of users
+note right of usuarios
   **Roles:**
   - admin: Administrador del sistema
   - teacher: Profesor de talleres
@@ -106,11 +106,11 @@ note right of users
   - parent: Padre de familia
   
   **Campos condicionales:**
-  - grade, section: solo para students
-  - children: solo para parents
+  - grade, section: solo para estudiantes
+  - children: solo para padres
 end note
 
-note right of workshops
+note right of talleres
   **Restricciones:**
   Si restrictByGradeSection = true,
   solo estudiantes en allowedSections
@@ -120,10 +120,17 @@ note right of workshops
   Array de IDs de usuarios inscritos
 end note
 
-note right of attendances
+note right of asistencias
   **records:**
-  Array de objetos AttendanceRecord
+  Array de objetos RegistroAsistencia
   con la asistencia de cada estudiante
+  
+  **Estados de asistencia:**
+  - present: Presente
+  - late: Tardanza
+  - justified: Falta justificada
+  - absent: Ausente
+  - none: Sin registro
 end note
 
 @enduml
