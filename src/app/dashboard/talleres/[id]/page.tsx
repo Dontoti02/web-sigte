@@ -37,13 +37,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  ArrowLeft, 
-  UserX, 
-  Loader2, 
-  Users, 
-  Calendar, 
-  Clock, 
+import {
+  ArrowLeft,
+  UserX,
+  Loader2,
+  Users,
+  Calendar,
+  Clock,
   GraduationCap,
   Shield,
   Edit
@@ -68,7 +68,7 @@ export default function WorkshopDetailPage() {
   const { firestore } = useFirebase();
   const { role } = useRole();
   const { toast } = useToast();
-  
+
   const [workshop, setWorkshop] = useState<Workshop | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
@@ -82,7 +82,7 @@ export default function WorkshopDetailPage() {
   useEffect(() => {
     const loadWorkshop = async () => {
       if (!params.id || typeof params.id !== 'string') return;
-      
+
       try {
         const workshopDoc = await getDoc(doc(firestore, 'workshops', params.id));
         if (workshopDoc.exists()) {
@@ -108,22 +108,22 @@ export default function WorkshopDetailPage() {
   useEffect(() => {
     const loadStudents = async () => {
       if (!workshop || !allUsers) return;
-      
+
       setLoadingStudents(true);
       try {
         const students: EnrolledStudent[] = [];
-        
+
         for (const participantId of workshop.participants) {
           // Buscar en users
           const userFromUsers = allUsers.find(u => u.id === participantId);
-          
+
           if (userFromUsers) {
             students.push({
               id: participantId,
-              name: userFromUsers.displayName || 
-                    `${userFromUsers.lastName}, ${userFromUsers.firstName}` || 
-                    userFromUsers.name || 
-                    'Usuario',
+              name: userFromUsers.displayName ||
+                `${userFromUsers.lastName}, ${userFromUsers.firstName}` ||
+                userFromUsers.name ||
+                'Usuario',
               email: userFromUsers.email || 'Sin email',
               grade: userFromUsers.grade || 'No asignado',
               section: userFromUsers.section || 'No asignada',
@@ -137,9 +137,9 @@ export default function WorkshopDetailPage() {
                 const studentData = studentDoc.data();
                 students.push({
                   id: participantId,
-                  name: studentData.displayName || 
-                        `${studentData.lastName}, ${studentData.firstName}` || 
-                        'Estudiante',
+                  name: studentData.displayName ||
+                    `${studentData.lastName}, ${studentData.firstName}` ||
+                    'Estudiante',
                   email: studentData.email || 'Sin email',
                   grade: studentData.grade || 'No asignado',
                   section: studentData.section || 'No asignada',
@@ -151,7 +151,7 @@ export default function WorkshopDetailPage() {
             }
           }
         }
-        
+
         setEnrolledStudents(students);
       } catch (error) {
         console.error('Error cargando estudiantes:', error);
@@ -226,13 +226,14 @@ export default function WorkshopDetailPage() {
   }
 
   const deadline = new Date(workshop.enrollmentDeadline);
+  const isValidDeadline = !isNaN(deadline.getTime());
 
   return (
     <div className="container mx-auto py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={() => router.push('/dashboard/talleres')}
         >
@@ -280,7 +281,7 @@ export default function WorkshopDetailPage() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-muted-foreground" />
               <div className="text-sm">
@@ -288,7 +289,7 @@ export default function WorkshopDetailPage() {
                 <p className="text-muted-foreground">{workshop.teacherName}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div className="text-sm">
@@ -296,13 +297,13 @@ export default function WorkshopDetailPage() {
                 <p className="text-muted-foreground">{workshop.schedule}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div className="text-sm">
                 <p className="font-medium">Fecha límite</p>
                 <p className="text-muted-foreground">
-                  {format(deadline, 'dd/MM/yyyy', { locale: es })}
+                  {isValidDeadline ? format(deadline, 'dd/MM/yyyy', { locale: es }) : 'Fecha no disponible'}
                 </p>
               </div>
             </div>
@@ -402,8 +403,8 @@ export default function WorkshopDetailPage() {
                         <TableCell className="text-right">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 className="text-red-500 hover:bg-red-50 hover:text-red-600"
                               >
