@@ -542,9 +542,8 @@ pass: alexlop02
   sera su primer apellido en MAYUSCULAS (los correos son generados por el mismo sistema no son reales son simplemente para ingresar al rol estudiante)
 + Para cuenta padre se registra primero debajo del login se encuatra la opcion 
   y al ingresar preguntara los datos de su hijo para agregarlo
-
-========================================================
-LA OPCION CIRRE AÑO
+  
+## LA OPCION CIRRE AÑO
 solo funciona si acaba el año escolar se borrara todo del año anterior
 ========================================================
 El excel de estudiantes para subirse masivamente sera ese formato ya esta configurado
