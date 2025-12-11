@@ -526,16 +526,30 @@ Si deseas contribuir al proyecto:
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abre un Pull Request
 
-## 📄 Licencia
+## INSTRUCCIONES ADICIONALES
 
-Este proyecto está bajo la Licencia MIT.
+PROYECTO COMPLETO
+repo_github: https://github.com/Dontoti02/web-sigte.git
 
-## 👥 Soporte
 
-Si tienes problemas o preguntas:
-- Abre un issue en GitHub
-- Contacta al equipo de desarrollo
+=======================================================
 
----
+admin: springrandalf@gmail.com
+pass: alexlop02
+
++ Entrando con admin crea nueva cuenta en usuarios docente o mismo admin
++ Para cuenta estudiante sera el correo que sale en gestion estudiantes en admin y la contraseña
+  sera su primer apellido en MAYUSCULAS (los correos son generados por el mismo sistema no son reales son simplemente para ingresar al rol estudiante)
++ Para cuenta padre se registra primero debajo del login se encuatra la opcion 
+  y al ingresar preguntara los datos de su hijo para agregarlo
+
+========================================================
+LA OPCION CIRRE AÑO
+solo funciona si acaba el año escolar se borrara todo del año anterior
+========================================================
+El excel de estudiantes para subirse masivamente sera ese formato ya esta configurado
+El excel de asistencias sera asi como esta alli en ese formato los que no se encuentran en esa lista el sistema los pone como falto, alli depende de quien usa el sistema para ponerle asistencia a los que no estan.
+========================================================
+El restablecer contraseña el mensaje siempre llega al correo en SPAM por si no lo encuntran.
 
 **Desarrollado con ❤️ para la gestión eficiente de talleres escolares**
